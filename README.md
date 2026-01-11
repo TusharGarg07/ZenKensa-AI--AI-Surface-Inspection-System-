@@ -1,18 +1,30 @@
 🛡️ ZenKensa - AI 表面欠陥検査システム [AI Surface Inspection System]
 
-ZenKensaは、製造業の品質保証向けに設計されたプロフェッショナルなAI表面検査システムです。 [ZenKensa is a professional AI surface inspection system designed for manufacturing quality assurance.]
+ZenKensaは、製造業の品質保証向けに設計されたプロフェッショナルなAI表面検査システムです。[ZenKensa is a professional AI surface inspection system designed for manufacturing quality assurance.]
 
 🚀 主な機能 [Key Features]
 
-**OpenCVによる高性能な検知解析** [High-performance OpenCV detection]: 高速な画像処理と最適化されたライブラリにより、高解像度の画像でも遅延なく瞬時に解析を行います。 [Utilizes optimized OpenCV libraries and auto-resizing for instantaneous analysis of high-resolution images without delay.]
+**OpenCVによる高性能な検知解析** [High-performance OpenCV detection]: 高速な画像処理と最適化されたライブラリにより、高解像度の画像でも遅延なく瞬時に解析を行います。[Utilizes optimized OpenCV libraries and auto-resizing for instantaneous analysis of high-resolution images without delay.]
 
-**リアルタイム解析機能** [Real-time Processing]: 独自のアルゴリズムを用いて、欠陥の数と健全性スコアをリアルタイムに算出します。 [Calculates the number of defects and health score in real-time using a proprietary algorithm.]
+**リアルタイム解析機能** [Real-time Processing]: 独自のアルゴリズムを用いて、欠陥の数と健全性スコアをリアルタイムに算出します。[Calculates the number of defects and health score in real-time using a proprietary algorithm.]
 
-**高度なエッジ検出** [Advanced Edge Detection]: Sobel法を用いて、表面の影などのノイズを排除し、実際のひび割れのみを特定します。 [Uses Sobel method to eliminate noise like shadows and identify only actual cracks.]
+**高度なエッジ検出** [Advanced Edge Detection]: Sobel法を用いて、表面の影などのノイズを排除し、実際のひび割れのみを特定します。[Uses Sobel method to eliminate noise like shadows and identify only actual cracks.]
 
-**モバイル最適化** [Mobile Optimized]: スマートフォンのカメラに直接アクセス可能で、現場での即時検査に対応しています。 [Direct access to smartphone cameras for immediate on-site inspection.]
+📱 モバイルおよびカメラ機能 [Mobile & Camera Features]
 
-**プロフェッショナルレポート** [Professional Reports]: 日本語フォント（IPAexゴシック）を搭載し、詳細なPDFレポートを自動生成します。 [Equipped with IPAex Gothic fonts to automatically generate detailed PDF reports.]
+**ネイティブカメラ連携** [Native Camera Integration]: モバイル端末のブラウザから直接カメラを起動し、現場で即座に撮影・検査が可能です。[Directly triggers the mobile device's native camera for instant on-site capture and inspection.]
+
+**レスポンシブ設計** [Responsive Design]: スマートフォン、タブレット、デスクトップのあらゆる画面サイズに最適化されています。[The UI is fully optimized for smartphones, tablets, and desktop screens.]
+
+**処理中のオーバーレイ** [Processing Overlay]: 解析中、ユーザーにスキャン中であることを知らせる視覚的なフィードバックを提供します。[Provides a 'Scanning...' visual overlay to inform users during the AI analysis.]
+
+🏢 エンタープライズ機能 [Enterprise Features]
+
+**検査履歴の管理** [Inspection History]: SQLiteデータベースを使用して、過去の検査データを自動的に保存・追跡します。[Automatically saves and tracks historical inspection data using a SQLite database.]
+
+**自動メールアラート** [Automated Email Alerts]: 検査結果が「不合格」の場合、即座に管理者へ通知を送ります。[Sends immediate notifications to managers when an inspection results in a 'Fail' status.]
+
+**プロフェッショナルレポート** [Professional PDF Reports]: 日本語フォント（IPAexゴシック）を搭載し、詳細なPDFレポートを自動生成します。[Equipped with IPAex Gothic fonts to automatically generate detailed, professional PDF reports.]
 
 📊 判定ロジック [Detection Logic]
 
@@ -20,7 +32,7 @@ ZenKensaは、製造業の品質保証向けに設計されたプロフェッシ
 
 **不合格基準** [Fail Criteria]: 健全性スコア < 90% または 総欠陥数 > 5
 
-**適応型コントラスト調整** [Adaptive Contrast]: CLAHE技術により、照明条件に関わらず安定した検知精度を維持します。 [Maintains stable detection accuracy regardless of lighting conditions using CLAHE technology.]
+**適応型コントラスト調整** [Adaptive Contrast]: CLAHE技術により、照明条件に関わらず安定した検知精度を維持します。[Maintains stable detection accuracy regardless of lighting conditions using CLAHE technology.]
 
 ⚙️ セットアップ [Setup]
 
@@ -45,13 +57,13 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 zenkensa/
 ├── app/
-│   ├── main.py              # バックエンドロジック [Backend Logic]
+│   ├── main.py              # バックエンドおよびAIロジック [Backend & AI Logic]
 │   ├── templates/
-│   │   └── index.html       # ウェブインターフェース [Web Interface]
+│   │   └── index.html       # モバイル最適化UI [Mobile Optimized UI]
 │   └── static/
 │       ├── fonts/
 │       │   └── ipaexg.ttf   # 日本語フォント [Japanese Font]
-│       └── reports/         # 生成されたPDF [Generated PDFs]
+│       └── reports/         # 生成されたPDFレポート [Generated PDF Reports]
 ├── requirements.txt         # 依存ライブラリ [Dependencies]
 ├── .gitignore               # Git除外設定 [Git Ignore Rules]
 └── README.md                # 本ファイル [This File]
