@@ -1,145 +1,60 @@
-# ZenKensa - AI Surface Inspection System
+🛡️ ZenKensa - AI 表面欠陥検査システム [AI Surface Inspection System]
 
-A professional-grade AI-powered surface inspection system with Japanese localization, real-time defect detection, and enterprise features.
+ZenKensaは、製造業の品質保証向けに設計されたプロフェッショナルなAI表面検査システムです。 [ZenKensa is a professional AI surface inspection system designed for manufacturing quality assurance.]
 
-## Features
+🚀 主な機能 [Key Features]
 
-- **Advanced Edge Detection**: Sobel-based adaptive logic for accurate crack detection
-- **Mobile-Friendly**: Responsive design with native camera access
-- **Enterprise Features**: SQLite database, email alerts, inspection history
-- **Japanese Localization**: Full bilingual support (Japanese/English)
-- **PDF Reports**: Professional inspection reports with Japanese fonts
-- **Real-Time Processing**: High-performance OpenCV detection
+**OpenCVによる高性能な検知解析** [High-performance OpenCV detection]: 高速な画像処理と最適化されたライブラリにより、高解像度の画像でも遅延なく瞬時に解析を行います。 [Utilizes optimized OpenCV libraries and auto-resizing for instantaneous analysis of high-resolution images without delay.]
 
-## Quick Start
+**リアルタイム解析機能** [Real-time Processing]: 独自のアルゴリズムを用いて、欠陥の数と健全性スコアをリアルタイムに算出します。 [Calculates the number of defects and health score in real-time using a proprietary algorithm.]
 
-### Installation
+**高度なエッジ検出** [Advanced Edge Detection]: Sobel法を用いて、表面の影などのノイズを排除し、実際のひび割れのみを特定します。 [Uses Sobel method to eliminate noise like shadows and identify only actual cracks.]
 
+**モバイル最適化** [Mobile Optimized]: スマートフォンのカメラに直接アクセス可能で、現場での即時検査に対応しています。 [Direct access to smartphone cameras for immediate on-site inspection.]
+
+**プロフェッショナルレポート** [Professional Reports]: 日本語フォント（IPAexゴシック）を搭載し、詳細なPDFレポートを自動生成します。 [Equipped with IPAex Gothic fonts to automatically generate detailed PDF reports.]
+
+📊 判定ロジック [Detection Logic]
+
+**合格基準** [Pass Criteria]: 健全性スコア (Health Score) ≥ 90% かつ 総欠陥数 (Total Defects) ≤ 5
+
+**不合格基準** [Fail Criteria]: 健全性スコア < 90% または 総欠陥数 > 5
+
+**適応型コントラスト調整** [Adaptive Contrast]: CLAHE技術により、照明条件に関わらず安定した検知精度を維持します。 [Maintains stable detection accuracy regardless of lighting conditions using CLAHE technology.]
+
+⚙️ セットアップ [Setup]
+
+**リポジトリをクローン** [Clone repository]:
 ```bash
-# Clone the repository
 git clone <repository-url>
 cd zenkensa
+```
 
-# Install dependencies
+**依存関係のインストール** [Install dependencies]:
+```bash
 pip install -r requirements.txt
-
-# Run the application
-uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-### Requirements
-
-- Python 3.8+
-- FastAPI
-- OpenCV (headless for deployment)
-- SQLite
-- Modern web browser
-
-## Usage
-
-1. **Web Interface**: Open `http://localhost:8000` in your browser
-2. **Mobile**: Tap the upload button to use camera or select image
-3. **Desktop**: Click upload button to select image file
-4. **Results**: View health score, defect count, and download PDF report
-5. **History**: Track inspection results in the history table
-
-## API Endpoints
-
-- `GET /`: Main web interface
-- `POST /predict`: AI surface inspection analysis
-- `GET /history`: Retrieve inspection history
-- `GET /generate-report`: Generate PDF report
-
-## Detection Logic
-
-**Industrial Standards**:
-- **Pass Criteria**: Health Score ≥ 90% AND Defects ≤ 5
-- **Fail Criteria**: Any condition below pass threshold
-- **Health Score**: 100 - (edge_percentage * 2) with safety buffer (10-99%)
-
-**Edge Detection**:
-- **Sobel Operators**: X/Y gradients for real physical crack detection
-- **CLAHE**: Adaptive contrast enhancement for shadow handling
-- **OTSU Threshold**: Automatic lighting level detection
-- **Professional Filtering**: Only significant defects marked in reports
-
-## Deployment
-
-### Docker Deployment
-
-```dockerfile
-FROM python:3.9-slim
-
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-
-COPY . .
-EXPOSE 8000
-
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+**アプリケーションの起動** [Run application]:
+```bash
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-### Cloud Deployment
-
-- Uses `opencv-python-headless` for server environments
-- Font paths work on Linux servers
-- Database auto-initialization on startup
-- Static files properly served
-
-## Project Structure
+📂 プロジェクト構造 [Project Structure]
 
 ```
 zenkensa/
 ├── app/
-│   ├── main.py              # FastAPI application
+│   ├── main.py              # バックエンドロジック [Backend Logic]
 │   ├── templates/
-│   │   └── index.html       # Web interface
+│   │   └── index.html       # ウェブインターフェース [Web Interface]
 │   └── static/
 │       ├── fonts/
-│       │   └── ipaexg.ttf   # Japanese font
-│       └── reports/           # Generated PDFs
-├── requirements.txt            # Python dependencies
-├── .gitignore              # Git ignore rules
-└── README.md               # This file
+│       │   └── ipaexg.ttf   # 日本語フォント [Japanese Font]
+│       └── reports/         # 生成されたPDF [Generated PDFs]
+├── requirements.txt         # 依存ライブラリ [Dependencies]
+├── .gitignore               # Git除外設定 [Git Ignore Rules]
+└── README.md                # 本ファイル [This File]
 ```
 
-## Configuration
-
-### Database
-- **Type**: SQLite
-- **Location**: `inspections.db` (auto-created)
-- **Schema**: id, timestamp, inspector, batch, status, score, defects
-
-### Font
-- **Japanese**: IPAex Gothic font bundled locally
-- **Path**: `app/static/fonts/ipaexg.ttf`
-- **Fallback**: System fonts if local font missing
-
-## Mobile Features
-
-- **Camera Access**: Native mobile camera integration
-- **Touch-Friendly**: Large buttons and tap targets
-- **Responsive Layout**: Stacked interface on mobile
-- **Full-Screen Processing**: Clear feedback during AI analysis
-
-## Enterprise Features
-
-- **Inspection History**: Last 10 inspections with filtering
-- **Email Alerts**: Automatic notifications for failed inspections
-- **PDF Reports**: Professional bilingual inspection reports
-- **Database Persistence**: SQLite for reliable data storage
-
-## License
-
-MIT License - see LICENSE file for details
-
-## Contributing
-
-1. Fork the repository
-2. Create feature branch
-3. Submit pull request
-
-## Support
-
-For issues and support, please use the GitHub issue tracker.
+Developed for Industrial Quality Excellence.
