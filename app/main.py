@@ -107,13 +107,17 @@ async def predict(file: UploadFile = File(...)):
             
             # Calculate health as percentage of non-edge pixels
             edge_percentage = (edge_pixels / total_pixels) * 100
-            health_score = 100 - (edge_percentage * 2)  # Multiply by 2 for impact
-            
-            # SAFETY BUFFER: Ensure realistic scores (10-99 range)
-            health_score = max(10, min(99, health_score))
+            base_health_score = 100 - (edge_percentage * 2)  # Multiply by 2 for impact
             
             # Calculate metrics
             number_of_defects = len(filtered_contours)
+            
+            # DEFECT PENALTY: Subtract 1% for every 2 defects found
+            defect_penalty = number_of_defects / 2  # 1% penalty for every 2 defects
+            health_score = base_health_score - defect_penalty
+            
+            # SAFETY BUFFER: Ensure realistic scores (10-99 range)
+            health_score = max(10, min(99, health_score))
             
             # STRICT INDUSTRIAL: Pass only if health_score >= 90 AND defects <= 5
             status = 'Pass' if health_score >= 90 and number_of_defects <= 5 else 'Fail'
