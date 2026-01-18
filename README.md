@@ -1,138 +1,175 @@
-🛡️ ZenKensa - AI 表面欠陥検査システム [AI Surface Inspection System]
+# 🛡️ ZenKensa – AI 表面欠陥検査システム
 
-## 🏭 **Japanese Industrial Inspection System** [日本の工業用検査システム]
-
-**ZenKensaは日本の中小企業向けに設計されたAI支援型金属表面検査システムです。AIは参考指標として機能し、最終判断は検査担当者の責任において行われます。**
-
-**ZenKensa is an AI-assisted metal surface inspection system designed for Japanese SMEs. AI functions as a reference indicator, with final judgment made by the responsible inspector.**
+**AI Surface Defect Inspection System**
 
 ---
 
-## ⚠️ **AI Responsibility Disclaimer** [AI責任の明確化]
+## 🏭 Japanese Industrial Inspection System
 
-**重要：本システムにおけるAI解析結果は参考指標です。最終的な合否判定は、必ず検査担当者の責任において行ってください。**
+**日本の工業用検査システム**
 
-**IMPORTANT: AI analysis results in this system are reference indicators only. Final pass/fail judgment must always be made by the responsible inspector.**
+ZenKensaは、日本の中小製造業（SME）向けに設計された**AI支援型金属表面検査システム**です。
+本システムにおけるAIは**参考指標（AI参考指標）**として機能し、**最終的な合否判定は必ず検査担当者の責任において行われます**。
 
----
-
-## 📋 **System Architecture** [システムアーキテクチャ]
-
-### **Two-Stage Inspection Pipeline** [二段階検査パイプライン]
-
-1. **Metal Surface Validation** [金属表面検証]
-   - 画像が金属表面として適切か検証
-   - 非金属画像は自動的に拒否
-
-2. **Defect Inspection** [欠陥検査]
-   - 金属表面検証通過後のみ実行
-   - 欠陥リスクを算出
-
-### **AI Reference Positioning** [AI参考指標の位置付け]
-
-- ✅ **AIは支援ツール** [AI as support tool]
-- ✅ **人間が最終判断者** [Human as final decision maker]
-- ✅ **責任境界明確** [Clear responsibility boundaries]
+ZenKensa is an AI-assisted metal surface inspection system designed for Japanese SMEs.
+AI functions strictly as a reference indicator, and all final pass/fail decisions remain the responsibility of the human inspector.
 
 ---
 
-## 📂 **Metal Surface Validation Dataset** [金属表面検証データセット]
+## ⚠️ AI Responsibility Disclaimer
 
-The system includes a specialized binary classification dataset for metal surface validation:
+**AI責任の明確化（重要）**
 
-**Binary Classes:**
-- **metal**: Close-up industrial metallic surfaces suitable for inspection
-- **non_metal**: Visually distinct, non-inspectable surfaces such as rubber, plastic, wood, fabric, and background-heavy images
+**重要：**
+本システムにおけるAI解析結果は参考指標です。
+最終的な合否判定は、必ず検査担当者の責任において行ってください。
 
-**Dataset Structure:**
-```
-dataset_metal_validator/
-├── train/ (70% - 1,006 images)
-│   ├── metal/ (503 images)
-│   └── non_metal/ (503 images)
-├── val/ (15% - 216 images)
-│   ├── metal/ (108 images)
-│   └── non_metal/ (108 images)
-└── test/ (15% - 218 images)
-    ├── metal/ (109 images)
-    └── non_metal/ (109 images)
-```
-
-**Key Features:**
-- **Perfect 50/50 Class Balance**: Ensures unbiased model training
-- **Zero Data Leakage**: Strict separation between train/val/test splits
-- **Industrial Realism**: Non_metal class contains visually distinct surfaces designed to teach rejection behavior for unsupported inspection inputs
-- **Quality Validation**: All images validated for proper classification and split integrity
-
-**Purpose**: The non_metal class is intentionally designed to teach rejection behavior for unsupported inspection inputs, ensuring the system only processes appropriate metallic surfaces.
+**IMPORTANT:**
+AI analysis results are reference indicators only.
+Final inspection judgment must always be made by the responsible inspector.
 
 ---
 
-🚀 **主な機能 **[Key Features]
+## 📋 System Architecture
 
-**OpenCVによる高性能な検知解析** [High-performance OpenCV detection]: 高速な画像処理と最適化されたライブラリにより、高解像度の画像でも遅延なく瞬時に解析を行います。[Utilizes optimized OpenCV libraries and auto-resizing for instantaneous analysis of high-resolution images without delay.]
+**システムアーキテクチャ**
 
-**リアルタイム解析機能** [Real-time Processing]: 独自のアルゴリズムを用いて、欠陥の数と健全性スコアをリアルタイムに算出します。[Calculates the number of defects and health score in real-time using a proprietary algorithm.]
+### 🔁 Two-Stage Inspection Pipeline
 
-**高度なエッジ検出** [Advanced Edge Detection]: Sobel法を用いて、表面の影などのノイズを排除し、実際のひび割れのみを特定します。[Uses Sobel method to eliminate noise like shadows and identify only actual cracks.]
+**二段階検査パイプライン**
 
----📱 **モバイルおよびカメラ機能** [Mobile & Camera Features]
+#### ① Metal Surface Validation（ゲートキーパー）
 
-**ネイティブカメラ連携** [Native Camera Integration]: モバイル端末のブラウザから直接カメラを起動し、現場で即座に撮影・検査が可能です。[Directly triggers the mobile device's native camera for instant on-site capture and inspection.]
+* 入力画像が工業用検査に適した**金属表面かどうかを判定**
+* 非金属（ゴム・木材・布・背景画像など）は自動拒否
+* 不適切な入力による誤検知を防止
 
-**レスポンシブ設計** [Responsive Design]: スマートフォン、タブレット、デスクトップのあらゆる画面サイズに最適化されています。[The UI is fully optimized for smartphones, tablets, and desktop screens.]
+#### ② Defect Tendency Inspection（欠陥傾向解析）
 
-**処理中のオーバーレイ** [Processing Overlay]: 解析中、ユーザーにスキャン中であることを知らせる視覚的なフィードバックを提供します。[Provides a 'Scanning...' visual overlay to inform users during the AI analysis.]
+* 金属表面と判定された画像のみ解析
+* 表面欠陥の傾向を評価
+* **健全性スコア（0–100%）を算出**
 
----🏢 **エンタープライズ機能** [Enterprise Features]
+---
 
-**検査履歴の管理** [Inspection History]: SQLiteデータベースを使用して、過去の検査データを自動的に保存・追跡します。[Automatically saves and tracks historical inspection data using a SQLite database.]
+## 🤖 AI Reference Positioning
 
-**自動メールアラート** [Automated Email Alerts]: 検査結果が「不合格」の場合、即座に管理者へ通知を送ります。[Sends immediate notifications to managers when an inspection results in a 'Fail' status.]
+**AI参考指標の位置付け**
 
-**プロフェッショナルレポート** [Professional PDF Reports]: 日本語フォント（IPAexゴシック）を搭載し、詳細なPDFレポートを自動生成します。[Equipped with IPAex Gothic fonts to automatically generate detailed, professional PDF reports.]
+✅ AIは検査支援ツール
+✅ 人間が最終判断者
+✅ 責任境界が明確
+✅ AIは決定権を持たない
 
----📊 **判定ロジック** [Detection Logic]
+---
 
-**合格基準** [Pass Criteria]: 健全性スコア (Health Score) ≥ 90% かつ 総欠陥数 (Total Defects) ≤ 5
+## 📂 Metal Surface Validation Dataset
 
-**不合格基準** [Fail Criteria]: 健全性スコア < 90% または 総欠陥数 > 5
+**金属表面検証データセット（学習済みモデル使用）**
 
-**適応型コントラスト調整** [Adaptive Contrast]: CLAHE技術により、照明条件に関わらず安定した検知精度を維持します。[Maintains stable detection accuracy regardless of lighting conditions using CLAHE technology.]
+本システムのゲートキーパーAIは、**金属 / 非金属の二値分類**を目的として構築された専用データセットで学習されています。
 
----⚙️ **セットアップ **[Setup]
+**Binary Classes**
 
-**リポジトリをクローン** [Clone repository]:
+* `metal`：検査対象となる工業用金属表面
+* `non_metal`：ゴム、プラスチック、木材、布、背景画像など
+
+**Design Principles**
+
+* クラス完全均衡（50 / 50）
+* データリークなし（train / val / test 厳密分離）
+* 非金属クラスは「拒否動作学習」を目的に設計
+
+※ 本番環境には学習データは含まれません。
+
+---
+
+## 🚀 主な機能
+
+**Key Features**
+
+* **軽量AIモデル（TensorFlow Lite）**
+  CPU環境で動作可能な工業向け軽量構成
+
+* **健全性スコア算出**
+  欠陥傾向を数値化し、判断を支援
+
+* **日本語PDF検査レポート自動生成**
+  検査ID、日時、スコア、判定結果を記録
+  監査・トレーサビリティ対応
+
+* **工場現場向けUI**
+  余白・視線誘導・安心感を重視した日本的工業UI
+
+---
+
+## 📱 Mobile & On-Site Workflow
+
+**モバイル・現場対応**
+
+* モバイル端末・タブレット対応
+* レスポンシブUI
+* 現場撮影 → 即検査 → レポート生成
+
+---
+
+## 📊 判定ロジック
+
+**Inspection Criteria**
+
+* **合格（Pass）**
+  健全性スコア ≥ 90% かつ 欠陥数 ≤ 5
+
+* **不合格（Fail）**
+  上記条件を満たさない場合
+
+※ 判定基準は現場要件に応じて調整可能
+
+---
+
+## ⚙️ Setup
+
+**セットアップ**
+
 ```bash
 git clone <repository-url>
 cd zenkensa
-```
-
-**依存関係のインストール** [Install dependencies]:
-```bash
 pip install -r requirements.txt
-```
-
-**アプリケーションの起動** [Run application]:
-```bash
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
----📂 **プロジェクト構造** [Project Structure]
+---
+
+## 📂 Project Structure
+
+**プロジェクト構成**
 
 ```
 zenkensa/
 ├── app/
-│   ├── main.py              # バックエンドおよびAIロジック [Backend & AI Logic]
-│   ├── templates/
-│   │   └── index.html       # モバイル最適化UI [Mobile Optimized UI]
-│   └── static/
-│       ├── fonts/
-│       │   └── ipaexg.ttf   # 日本語フォント [Japanese Font]
-│       └── reports/         # 生成されたPDFレポート [Generated PDF Reports]
-├── requirements.txt         # 依存ライブラリ [Dependencies]
-├── .gitignore               # Git除外設定 [Git Ignore Rules]
-└── README.md                # 本ファイル [This File]
+│   ├── main.py              # FastAPI Backend & AI Pipeline
+│   └── templates/
+│       └── index.html       # Japanese Industrial UI
+├── metal_surface_validator.tflite
+├── zenkensa_model.tflite
+├── reports/                 # Inspection JSON / PDF outputs
+├── requirements.txt
+├── .gitignore
+└── README.md
 ```
 
+---
+
+## 🏭 Design Philosophy
+
+**設計思想**
+
+* AIは補助、判断は人間
+* 説明可能性・監査対応重視
+* 日本の製造現場で「毎日使われる」ことを前提
+
+---
+
+**ZenKensa – 工場で安心して使えるAI検査支援システム**
 Developed for Industrial Quality Excellence.
+
