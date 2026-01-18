@@ -1,3 +1,44 @@
+# ZenKensa Production .gitignore
+# Exclude all training and dataset artifacts
+dataset/
+dataset_metal_validator/
+generated_good/
+neu_raw_for_conversion/
+
+# Exclude model training artifacts
+*.h5
+*_training_curves.png
+*_confusion_matrix.png
+training_curves.png
+
+# Exclude local development files
+inspections.db
+detected_image.jpg
+__pycache__/
+*.pyc
+.env
+
+# Exclude OS files
+.DS_Store
+Thumbs.db
+
+# Keep only production models
+!metal_surface_validator.tflite
+!zenkensa_model.tflite
+
+# Keep core application files
+!app/
+!requirements.txt
+!README.md
+!.gitignore
+
+# Keep test files for validation
+!test_gatekeeper.py
+!test_phase4_complete.py
+
+# Keep reports directory structure
+!reports/
+
 # Python
 __pycache__/
 *.py[cod]
@@ -26,7 +67,6 @@ wheels/
 *.sqlite3
 
 # Generated files
-detected_image.jpg
 app/static/reports/*.pdf
 *.pdf
 
@@ -41,10 +81,6 @@ app/static/reports/*.pdf
 *.swp
 *.swo
 *~
-
-# OS
-.DS_Store
-Thumbs.db
 
 # Logs
 *.log

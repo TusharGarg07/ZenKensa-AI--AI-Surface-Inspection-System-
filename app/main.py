@@ -1,19 +1,31 @@
 import os
-import time
 import cv2
-import traceback
-import sqlite3
 import numpy as np
+import sqlite3
+import traceback
+import logging
+import uuid
+import json
 from datetime import datetime
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fpdf import FPDF
+import tensorflow as tf
 
-app = FastAPI()
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Initialize FastAPI app
+app = FastAPI(title="ZenKensa Edge AI - Surface Inspection System")
 app.mount('/static', StaticFiles(directory='app/static'), name='static')
 templates = Jinja2Templates(directory='app/templates')
+
+# Global TFLite interpreters
+metal_validator_interpreter = None
+defect_inspector_interpreter = None
 
 # Database Setup
 def init_db():
@@ -35,273 +47,513 @@ def init_db():
 
 # Email Alert Function
 def send_email_alert(data):
-    if data.get('status') == 'Fail':
-        print('Email Sent to Manager - Inspection Failed')
+    if data.get('status') == 'FAIL':
+        logger.info('📧 Email Sent to Manager - Inspection Failed')
     else:
-        print('Inspection Passed - No email required')
+        logger.info('✅ Inspection Passed - No email required')
 
-# Initialize database on startup
+# Initialize both TFLite models on startup
 @app.on_event('startup')
 async def startup_event():
+    global metal_validator_interpreter, defect_inspector_interpreter
+    
+    # Initialize database
     init_db()
+    
     # Ensure reports directory exists
     os.makedirs('app/static/reports', exist_ok=True)
+    os.makedirs('reports', exist_ok=True)  # For JSON reports
+    
+    # Load Metal Surface Validator Model
+    try:
+        metal_model_path = os.path.join(os.getcwd(), "metal_surface_validator.tflite")
+        metal_validator_interpreter = tf.lite.Interpreter(model_path=metal_model_path)
+        metal_validator_interpreter.allocate_tensors()
+        logger.info("✅ Metal Surface Validator model loaded successfully")
+    except Exception as e:
+        logger.error(f"❌ Error loading Metal Surface Validator model: {e}")
+        metal_validator_interpreter = None
+    
+    # Load Defect Inspection Model
+    try:
+        defect_model_path = os.path.join(os.getcwd(), "zenkensa_model.tflite")
+        defect_inspector_interpreter = tf.lite.Interpreter(model_path=defect_model_path)
+        defect_inspector_interpreter.allocate_tensors()
+        logger.info("✅ Defect Inspection model loaded successfully")
+    except Exception as e:
+        logger.error(f"❌ Error loading Defect Inspection model: {e}")
+        defect_inspector_interpreter = None
+    
+    if metal_validator_interpreter and defect_inspector_interpreter:
+        logger.info("🚀 Both models loaded - Ready for industrial inspection pipeline")
+    else:
+        logger.error("❌ Model loading failed - Check model files")
 
-@app.get('/')
-async def read_root(request: Request):
-    return templates.TemplateResponse('index.html', {'request': request})
+def generate_inspection_report(data):
+    """
+    Generate Japanese Industrial Inspection Report (JSON canonical source)
+    Production-ready, audit-friendly, Japanese-first documentation
+    """
+    inspection_id = str(uuid.uuid4())
+    timestamp = datetime.now()
+    
+    # === SECTION 1: 検査情報 (Inspection Information) ===
+    inspection_info = {
+        "検査員名": data.get('inspector_name', 'Edge Inspector'),
+        "Inspector Name": data.get('inspector_name', 'Edge Inspector'),
+        "バッチID": data.get('batch_id', 'BATCH-001'),
+        "Batch ID": data.get('batch_id', 'BATCH-001'),
+        "製品情報": data.get('product_description', '金属表面検査'),
+        "Product Description": data.get('product_description', 'Metal Surface Inspection')
+    }
+    
+    # === SECTION 2: 判定結果 (Inspection Result) ===
+    status_japanese = {
+        "PASS": "合格",
+        "FAIL": "不合格", 
+        "UNCERTAIN": "判定保留",
+        "INVALID_INPUT": "無効"
+    }
+    
+    inspection_result = {
+        "判定": status_japanese.get(data.get('status'), data.get('status')),
+        "Status": data.get('status'),
+        "健全性スコア": round(data.get('health_score', 0) or 0, 1),
+        "Surface Health Score": round(data.get('health_score', 0) or 0, 1)
+    }
+    
+    # === SECTION 3: AI解析結果 (AI Analysis - Reference Only) ===
+    ai_analysis = {
+        "metal_surface_validation_score": round(data.get('metal_validation_score', 0) or 0, 4),
+        "defect_risk_indicator": round(data.get('defect_score', 0) or 0, 4),
+        "disclaimer": "※ 本解析結果はAIによる参考指標です。最終判断は検査担当者の責任において行ってください。",
+        "disclaimer_en": "This result is an AI-based reference indicator. Final judgment must be made by the responsible inspector."
+    }
+    
+    # === SECTION 4: 判定理由 (Decision Explanation) ===
+    decision_explanations = {
+        "PASS": {
+            "japanese": "表面に重大な欠陥は確認されておらず、基準内の状態であると判断されました。",
+            "english": "No significant surface defects were detected."
+        },
+        "FAIL": {
+            "japanese": "許容基準を超える欠陥傾向が検出されました。品質基準を満たしていません。",
+            "english": "Defect patterns exceed acceptable limits."
+        },
+        "UNCERTAIN": {
+            "japanese": "画像状態が不明瞭なため、再撮影または担当者確認を推奨します。",
+            "english": "Image clarity insufficient. Retake recommended."
+        },
+        "INVALID_INPUT": {
+            "japanese": "産業用金属表面の検査可能な画像ではありません。",
+            "english": "Image does not resemble an inspectable industrial metal surface."
+        }
+    }
+    
+    explanation = decision_explanations.get(data.get('status'), {
+        "japanese": "検査が完了しました。",
+        "english": "Inspection completed."
+    })
+    
+    # === SECTION 5: 検査履歴情報 (Inspection Metadata) ===
+    inspection_metadata = {
+        "使用モデル": {
+            "金属表面判定モデル": "v1.0",
+            "Metal Surface Validator": "v1.0",
+            "欠陥検査モデル": "v1.0", 
+            "Defect Inspection Model": "v1.0"
+        }
+    }
+    
+    # === COMPLETE REPORT STRUCTURE ===
+    report = {
+        # === PAGE HEADER ===
+        "report_title": "ZENKENSA 検査報告書",
+        "report_subtitle": "（Industrial Surface Inspection Report）",
+        "inspection_id": inspection_id,
+        "inspection_datetime": timestamp.strftime("%Y-%m-%d %H:%M"),
+        
+        # === SECTION 1 ===
+        "検査情報": inspection_info,
+        "Inspection Information": inspection_info,
+        
+        # === SECTION 2 ===
+        "判定結果": inspection_result,
+        "Inspection Result": inspection_result,
+        
+        # === SECTION 3 ===
+        "AI解析結果": ai_analysis,
+        "AI Analysis - Reference Only": ai_analysis,
+        
+        # === SECTION 4 ===
+        "判定理由": explanation,
+        "Decision Explanation": explanation,
+        
+        # === SECTION 5 ===
+        "検査履歴情報": inspection_metadata,
+        "Inspection Metadata": inspection_metadata,
+        
+        # === FOOTER ===
+        "system_name": "ZenKensa Edge AI",
+        "system_description": "工業用表面検査支援システム",
+        "system_description_en": "Industrial Surface Inspection Support System",
+        "footer_note": "※ 本レポートは品質管理支援を目的としています。",
+        "footer_note_en": "This report is intended for quality management support.",
+        
+        # === TECHNICAL METADATA ===
+        "timestamp_iso": timestamp.isoformat(),
+        "report_version": "1.0",
+        "encoding": "UTF-8"
+    }
+    
+    # === FAIL-SAFE FILE WRITING ===
+    report_path = f"reports/inspection_{inspection_id}.json"
+    try:
+        # Ensure reports directory exists
+        os.makedirs('reports', exist_ok=True)
+        
+        # Write report with UTF-8 encoding
+        with open(report_path, 'w', encoding='utf-8') as f:
+            json.dump(report, f, indent=2, ensure_ascii=False)
+        logger.info(f"📄 Japanese inspection report saved: {report_path}")
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to save Japanese inspection report: {e}")
+        # Fallback: create minimal report
+        try:
+            minimal_report = {
+                "inspection_id": inspection_id,
+                "error": "Report generation failed",
+                "timestamp": timestamp.isoformat()
+            }
+            with open(report_path, 'w', encoding='utf-8') as f:
+                json.dump(minimal_report, f, indent=2, ensure_ascii=False)
+            logger.info(f"📄 Fallback report saved: {report_path}")
+        except Exception as fallback_error:
+            logger.error(f"❌ Even fallback report failed: {fallback_error}")
+    
+    return inspection_id, report
 
+def get_explanation_text(status, metal_score, defect_score):
+    """Generate explanation text based on results"""
+    if status == "INVALID_INPUT":
+        return "Image does not resemble an inspectable industrial metal surface."
+    elif status == "UNCERTAIN":
+        return "Surface unclear. Please retake image with better lighting."
+    elif status == "PASS":
+        return "Surface appears clean with no significant defect patterns."
+    elif status == "FAIL":
+        return "Surface shows defect patterns exceeding acceptable threshold."
+    else:
+        return "Inspection completed."
+
+# Shared preprocessing function for both models
+def preprocess_image(image_bytes):
+    """Preprocess image for TFLite model inference (224x224 RGB normalized)"""
+    try:
+        # Decode image from bytes
+        img_array = np.frombuffer(image_bytes, np.uint8)
+        img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+        
+        if img is None:
+            raise Exception("Failed to decode image")
+        
+        # Convert BGR to RGB (TFLite expects RGB)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        
+        # Resize to model input size (224x224)
+        img = cv2.resize(img, (224, 224), interpolation=cv2.INTER_AREA)
+        
+        # Normalize to 0-1 range
+        img = img.astype(np.float32) / 255.0
+        
+        # Add batch dimension
+        img = np.expand_dims(img, axis=0)
+        
+        return img
+    except Exception as e:
+        logger.error(f"❌ Preprocessing error: {e}")
+        raise e
+
+# Metal Surface Validation (Gatekeeper)
+def validate_metal_surface(processed_img):
+    """Run metal surface validation model"""
+    try:
+        # Get input and output details
+        input_details = metal_validator_interpreter.get_input_details()
+        output_details = metal_validator_interpreter.get_output_details()
+        
+        # Set input tensor
+        metal_validator_interpreter.set_tensor(input_details[0]['index'], processed_img)
+        
+        # Run inference
+        metal_validator_interpreter.invoke()
+        
+        # Get metal validation probability
+        metal_prediction = metal_validator_interpreter.get_tensor(output_details[0]['index'])[0][0]
+        metal_score = float(metal_prediction)
+        
+        logger.info(f"🔍 Metal validation score: {metal_score:.4f}")
+        return metal_score
+        
+    except Exception as e:
+        logger.error(f"❌ Metal validation error: {e}")
+        raise e
+
+# Defect Inspection (Secondary Model)
+def inspect_defects(processed_img):
+    """Run defect inspection model"""
+    try:
+        # Get input and output details
+        input_details = defect_inspector_interpreter.get_input_details()
+        output_details = defect_inspector_interpreter.get_output_details()
+        
+        # Set input tensor
+        defect_inspector_interpreter.set_tensor(input_details[0]['index'], processed_img)
+        
+        # Run inference
+        defect_inspector_interpreter.invoke()
+        
+        # Get defect probability
+        defect_prediction = defect_inspector_interpreter.get_tensor(output_details[0]['index'])[0][0]
+        defect_score = float(defect_prediction)
+        
+        logger.info(f"🔍 Defect inspection score: {defect_score:.4f}")
+        return defect_score
+        
+    except Exception as e:
+        logger.error(f"❌ Defect inspection error: {e}")
+        raise e
+
+# Business Logic (Decision Layer)
+def apply_business_logic(defect_score):
+    """Apply industrial business logic for defect inspection results"""
+    if defect_score <= 0.5:
+        status = "PASS"
+        # Smart Health Score for PASS: 100 - (P × 20) (Target 80-100%)
+        health_score = 100 - (defect_score * 20)
+    else:
+        status = "FAIL"
+        # Smart Health Score for FAIL: (1.0 - P) × 80 (Target < 80%)
+        health_score = (1.0 - defect_score) * 80
+    
+    # Clamp health score to [0, 100]
+    health_score = max(0, min(100, health_score))
+    
+    return status, health_score
+
+# Main prediction endpoint with two-model pipeline
 @app.post('/predict')
 async def predict(file: UploadFile = File(...)):
     try:
+        # Log incoming request
+        logger.info(f"📥 Image received: {file.filename}")
+        
+        # Read uploaded image
         contents = await file.read()
         
-        # Save uploaded image to root path for PDF
+        # Save original image for PDF report
         with open('detected_image.jpg', 'wb') as f:
             f.write(contents)
         
-        # Advanced Edge Detection Model - Sobel-based Adaptive Logic
-        try:
-            # Read and resize immediately to prevent hanging
-            nparr = np.frombuffer(contents, np.uint8)
-            image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-            
-            # ZERO-HANG: Resize to fixed 800x600 for consistent performance
-            image = cv2.resize(image, (800, 600), interpolation=cv2.INTER_AREA)
-            
-            # Convert to grayscale
-            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            
-            # ADAPTIVE CONTRAST: Use CLAHE instead of simple equalization
-            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-            gray = clahe.apply(gray)
-            
-            # SOBEL EDGE MODEL: X/Y gradients for real physical crack detection
-            sobel_x = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
-            sobel_y = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
-            
-            # Calculate magnitude of gradients (real depth detection)
-            sobel_magnitude = np.sqrt(sobel_x**2 + sobel_y**2)
-            
-            # Normalize to 0-255 range
-            sobel_magnitude = np.uint8(255 * sobel_magnitude / np.max(sobel_magnitude))
-            
-            # ADAPTIVE THRESHOLD: Use OTSU to automatically find best lighting level
-            _, edges = cv2.threshold(sobel_magnitude, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-            
-            # Optional: Light morphological cleanup
-            kernel = np.ones((2, 2), np.uint8)
-            edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel)
-            
-            # Find contours
-            contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            
-            # Filter defects by minimum size (professional marking)
-            min_contour_area = 10  # Larger threshold for cleaner results
-            filtered_contours = [c for c in contours if cv2.contourArea(c) > min_contour_area]
-            
-            # BALANCED SCORING: Normalized area calculation for realistic health scores
-            height, width = edges.shape
-            total_pixels = width * height
-            edge_pixels = np.sum(edges > 0)
-            
-            # Calculate health as percentage of non-edge pixels
-            edge_percentage = (edge_pixels / total_pixels) * 100
-            base_health_score = 100 - (edge_percentage * 2)  # Multiply by 2 for impact
-            
-            # Calculate metrics
-            number_of_defects = len(filtered_contours)
-            
-            # DEFECT PENALTY: Subtract 1% for every 2 defects found
-            defect_penalty = number_of_defects / 2  # 1% penalty for every 2 defects
-            health_score = base_health_score - defect_penalty
-            
-            # SAFETY BUFFER: Ensure realistic scores (10-99 range)
-            health_score = max(10, min(99, health_score))
-            
-            # STRICT INDUSTRIAL: Pass only if health_score >= 90 AND defects <= 5
-            status = 'Pass' if health_score >= 90 and number_of_defects <= 5 else 'Fail'
-            
-            # PROFESSIONAL MARKING: Only draw rectangles on significant defects
-            result_image = image.copy()
-            for contour in filtered_contours:
-                if cv2.contourArea(contour) > 20:  # Only mark larger defects
-                    x, y, w, h = cv2.boundingRect(contour)
-                    cv2.rectangle(result_image, (x, y), (x + w, y + h), (0, 0, 255), 2)
-            
-            # Save processed image
-            cv2.imwrite('detected_image.jpg', result_image)
-            
-            # Create result data
-            result_data = {
-                "status": status,
-                "defect_score": round(100 - health_score, 1),  # Complementary score
-                "number_of_defects": number_of_defects,
-                "health_score": round(health_score, 1)
-            }
-            
-        except Exception as cv_error:
-            # Fallback if OpenCV fails
-            print(f"OpenCV Error: {cv_error}")
-            result_data = {
-                "status": "Fail",
-                "defect_score": 50.0,
-                "number_of_defects": 15,
-                "health_score": 50.0
-            }
+        # Check if models are loaded
+        if metal_validator_interpreter is None or defect_inspector_interpreter is None:
+            raise HTTPException(status_code=500, detail="Models not loaded properly")
         
-        # Save to database
-        conn = sqlite3.connect('inspections.db')
-        cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO inspections (timestamp, inspector, batch, status, score, defects)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (
-            datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'Default Inspector',
-            'BATCH-001',
-            result_data['status'],
-            result_data['health_score'],
-            result_data['number_of_defects']
-        ))
-        conn.commit()
-        conn.close()
+        # Preprocess image for models
+        processed_img = preprocess_image(contents)
         
-        # Send email alert if failed
-        send_email_alert(result_data)
+        # STEP 1: Metal Surface Validation (Gatekeeper)
+        metal_score = validate_metal_surface(processed_img)
         
-        return {"status": "success", "data": result_data}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-
-@app.get('/history')
-async def get_history():
-    try:
-        conn = sqlite3.connect('inspections.db')
-        cursor = conn.cursor()
-        cursor.execute('''
-            SELECT id, timestamp, inspector, batch, status, score, defects
-            FROM inspections
-            ORDER BY id DESC
-            LIMIT 10
-        ''')
-        records = cursor.fetchall()
-        conn.close()
-        
-        history = []
-        for record in records:
-            history.append({
-                'id': record[0],
-                'timestamp': record[1],
-                'inspector': record[2],
-                'batch': record[3],
-                'status': record[4],
-                'score': record[5],
-                'defects': record[6]
+        # Industrial Safety Guard: Uncertain range
+        if 0.45 <= metal_score <= 0.55:
+            logger.info("🔍 Uncertain metal surface detected")
+            explanation = get_explanation_text("UNCERTAIN", metal_score, 0)
+            return JSONResponse({
+                "status": "UNCERTAIN",
+                "message": "Surface unclear. Please retake image with better lighting.",
+                "explanation": explanation,
+                "metal_validation_score": round(metal_score, 4),
+                "defect_score": 0.0,
+                "health_score": 0.0
             })
         
-        return {"status": "success", "data": history}
+        # Gatekeeper Logic: Reject non-metal surfaces
+        if metal_score < 0.45:
+            logger.info("🚫 Non-metal surface detected - Rejected")
+            explanation = get_explanation_text("INVALID_INPUT", metal_score, 0)
+            return JSONResponse({
+                "status": "INVALID_INPUT",
+                "message": "Unsupported or non-inspectable surface detected. Please upload a clear industrial metal surface image.",
+                "explanation": explanation,
+                "metal_validation_score": round(metal_score, 4),
+                "defect_score": 0.0,
+                "health_score": 0.0
+            })
+        
+        logger.info("✅ Metal surface validated - Proceeding to defect inspection")
+        
+        # STEP 2: Defect Inspection (Only if metal validation passes)
+        defect_score = inspect_defects(processed_img)
+        
+        # STEP 3: Apply Business Logic
+        status, health_score = apply_business_logic(defect_score)
+        
+        # Clamp scores to valid ranges
+        metal_score = max(0.0, min(1.0, metal_score))
+        defect_score = max(0.0, min(1.0, defect_score))
+        health_score = max(0.0, min(100.0, health_score))
+        
+        # Generate explanation
+        explanation = get_explanation_text(status, metal_score, defect_score)
+        
+        # Create final response
+        result_data = {
+            "status": status,
+            "health_score": round(health_score, 2),
+            "metal_validation_score": round(metal_score, 4),
+            "defect_score": round(defect_score, 4),
+            "explanation": explanation
+        }
+        
+        # Generate inspection report for valid inspections
+        inspection_id = None
+        if status in ["PASS", "FAIL"]:
+            inspection_id, _ = generate_inspection_report(result_data)
+            result_data["inspection_id"] = inspection_id
+        
+        # Log final result
+        logger.info(f"🎯 Final result: {status} | Health: {health_score:.2f} | Metal: {metal_score:.4f} | Defect: {defect_score:.4f}")
+        
+        # Save to database (only for valid inspections)
+        try:
+            conn = sqlite3.connect('inspections.db')
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO inspections (timestamp, inspector, batch, status, score, defects)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (
+                datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'Edge Inspector',
+                'BATCH-001',
+                result_data['status'],
+                result_data['health_score'],
+                0 if result_data['status'] == 'PASS' else 1
+            ))
+            conn.commit()
+            conn.close()
+        except Exception as db_error:
+            logger.error(f"❌ Database error: {db_error}")
+        
+        # Send email alert for failed inspections
+        if result_data['status'] == 'FAIL':
+            send_email_alert(result_data)
+        
+        return JSONResponse(result_data)
+        
+    except HTTPException:
+        raise
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        logger.error(f"❌ Prediction error: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
-@app.get('/generate-report')
-async def generate_report(
-    status: str,
-    defect_score: float,
-    number_of_defects: int,
-    health_score: float,
-    inspector_name: str = 'Inspector',
-    batch_id: str = '001',
-    product_description: str = 'Product'
-):
+# Health check endpoint
+@app.get('/health')
+async def health_check():
+    """Check if models are loaded and ready"""
+    metal_ready = metal_validator_interpreter is not None
+    defect_ready = defect_inspector_interpreter is not None
+    
+    return {
+        "status": "ready" if metal_ready and defect_ready else "not_ready",
+        "metal_validator_loaded": metal_ready,
+        "defect_inspector_loaded": defect_ready
+    }
+
+# Report endpoint
+@app.get('/report/{inspection_id}')
+async def get_inspection_report(inspection_id: str):
+    """Get inspection report by ID"""
     try:
+        report_path = f"reports/inspection_{inspection_id}.json"
+        
+        if not os.path.exists(report_path):
+            raise HTTPException(status_code=404, detail="Inspection report not found")
+        
+        with open(report_path, 'r') as f:
+            report = json.load(f)
+        
+        return JSONResponse(report)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Report retrieval error: {e}")
+        raise HTTPException(status_code=500, detail=f"Report retrieval failed: {str(e)}")
+
+# Web interface endpoints (existing)
+@app.get('/', response_class=HTMLResponse)
+async def home(request: Request):
+    return templates.TemplateResponse('index_new.html', {"request": request})
+
+@app.get('/report')
+async def generate_report():
+    """Generate PDF report with Japanese font support"""
+    try:
+        # Get latest inspection data
+        conn = sqlite3.connect('inspections.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM inspections ORDER BY id DESC LIMIT 1')
+        latest = cursor.fetchone()
+        conn.close()
+        
+        if not latest:
+            raise HTTPException(status_code=404, detail="No inspection data found")
+        
+        # Create PDF with Japanese font
         pdf = FPDF()
         pdf.add_page()
-        pdf.set_auto_page_break(False, 0)
-
-        # Correct path to your uploaded font
-        font_path = os.path.join(os.getcwd(), 'app', 'static', 'fonts', 'ipaexg.ttf')
-        # Load local font and set it as default
-        pdf.add_font('ZenJapanese', '', font_path, uni=True)
-        pdf.set_font('ZenJapanese', '', 12)
-
-        # 1. HEADER (Japanese Only)
-        pdf.set_text_color(26, 42, 108)
-        pdf.set_xy(10, 10)
-        pdf.cell(0, 10, 'ZENKENSA', 0, 0, 'L')
-        pdf.set_xy(110, 10)
-        pdf.cell(90, 10, '検査報告書', 0, 0, 'R')
-
-        # 2. GENERAL INFO (Japanese)
-        pdf.set_font('ZenJapanese', '', 10)
-        pdf.set_xy(10, 30)
-        pdf.cell(0, 5, '基本情報', 0, 0, 'L')
-        pdf.set_fill_color(240, 240, 240)
-        pdf.set_xy(10, 35)
-        pdf.cell(60, 7, '項目', 1, 0, 'L', True)
-        pdf.cell(130, 7, '情報', 1, 1, 'L', True)
         
-        y_pos = 42
-        info = [
-            ['検査員名', inspector_name],
-            ['バッチID', batch_id],
-            ['製品説明', product_description], 
-            ['判定結果', '不合格' if status.lower() == 'fail' else '合格']
-        ]
-        for f, v in info:
-            pdf.set_xy(10, y_pos)
-            pdf.cell(60, 7, f, 1, 0, 'L')
-            pdf.set_xy(70, y_pos)
-            pdf.cell(130, 7, str(v), 1, 1, 'L')
-            y_pos += 7
-
-        # 3. DEFECT ANALYSIS (Japanese)
-        pdf.set_xy(10, 75)
-        pdf.cell(0, 5, '欠陥分析', 0, 0, 'L')
-        pdf.set_xy(10, 80)
-        pdf.cell(60, 7, '指標', 1, 0, 'C', True)
-        pdf.cell(40, 7, '基準', 1, 0, 'C', True)
-        pdf.cell(90, 7, '結果', 1, 1, 'C', True)
+        # Add Japanese font (IPAex Gothic)
+        try:
+            pdf.add_font('IPAex', '', 'app/static/fonts/ipaexg.ttf', uni=True)
+            pdf.set_font('IPAex', '', 12)
+        except:
+            pdf.set_font('Arial', '', 12)
         
-        pdf.set_xy(10, 87)
-        pdf.cell(60, 7, f'総欠陥数 ({number_of_defects})', 1, 0, 'L')
-        pdf.cell(40, 7, '<= 5', 1, 0, 'C')
-        pdf.cell(90, 7, '基準内' if number_of_defects <= 5 and health_score >= 90 else '基準外', 1, 1, 'C')
+        # Report content
+        pdf.cell(0, 10, 'ZenKensa AI Surface Inspection Report', ln=True, align='C')
+        pdf.ln(10)
+        pdf.cell(0, 10, f'Timestamp: {latest[1]}', ln=True)
+        pdf.cell(0, 10, f'Inspector: {latest[2]}', ln=True)
+        pdf.cell(0, 10, f'Batch: {latest[3]}', ln=True)
+        pdf.cell(0, 10, f'Status: {latest[4]}', ln=True)
+        pdf.cell(0, 10, f'Health Score: {latest[5]}', ln=True)
+        pdf.cell(0, 10, f'Defects Found: {latest[6]}', ln=True)
         
-        pdf.set_xy(10, 94)
-        pdf.cell(60, 7, '健全性スコア', 1, 0, 'L')
-        pdf.cell(40, 7, '> 90%', 1, 0, 'C')
-        pdf.cell(90, 7, f'総合スコア: {health_score}%', 1, 1, 'C')
-
-        # 4. PHOTO
-        pdf.set_xy(10, 125)
-        pdf.cell(0, 5, '製品写真', 0, 0, 'L')
-        img_path = os.path.abspath('detected_image.jpg')
-        if os.path.exists(img_path):
-            pdf.image(img_path, x=45, y=130, w=120, h=75)
-
-        # 5. RESULT BAR - Based on strict industrial criteria (90% and <=5 defects)
-        color = (239, 68, 68) if number_of_defects > 5 or health_score < 90 else (16, 185, 129)
-        pdf.set_fill_color(*color)
-        pdf.rect(10, 220, 190, 15, 'F')
-        pdf.set_text_color(255, 255, 255)
-        pdf.set_xy(10, 220)
-        pdf.cell(190, 15, f'総合判定: {"不合格" if number_of_defects > 5 or health_score < 90 else "合格"}', 0, 0, 'C')
-
-        # 6. ADVICE - Dynamic based on strict industrial criteria
-        pdf.set_text_color(26, 42, 108)
-        pdf.set_xy(10, 245)
-        pdf.cell(0, 5, '推奨事項:', 0, 0, 'L')
-        pdf.set_xy(10, 252)
-        recommendation = '正常：製品は基準を満たしています。' if number_of_defects <= 5 and health_score >= 90 else '警告：直ちにメンテナンスが必要です。'
-        pdf.cell(0, 5, recommendation, 0, 0, 'L')
-
-        pdf.output('app/static/reports/ZenKensa_JP.pdf')
-        return FileResponse('app/static/reports/ZenKensa_JP.pdf', filename='ZenKensa_Report_JP.pdf')
+        # Add detected image if available
+        if os.path.exists('detected_image.jpg'):
+            pdf.ln(10)
+            pdf.cell(0, 10, 'Detected Image:', ln=True)
+            pdf.image('detected_image.jpg', x=10, y=100, w=100)
         
-    except Exception:
-        traceback.print_exc()
-        return {'error': 'Check font path or image'}
+        # Save PDF
+        report_filename = f"inspection_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        report_path = f"app/static/reports/{report_filename}"
+        pdf.output(report_path)
+        
+        return FileResponse(report_path, media_type='application/pdf', filename=report_filename)
+        
+    except Exception as e:
+        logger.error(f"❌ Report generation error: {e}")
+        raise HTTPException(status_code=500, detail=f"Report generation failed: {str(e)}")
+
+# Static file serving
+@app.get('/static/reports/<filename>')
+async def get_report(filename: str):
+    return FileResponse(f'app/static/reports/{filename}')
 
 if __name__ == "__main__":
     import uvicorn

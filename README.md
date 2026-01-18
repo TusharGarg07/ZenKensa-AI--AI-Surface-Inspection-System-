@@ -1,8 +1,74 @@
 🛡️ ZenKensa - AI 表面欠陥検査システム [AI Surface Inspection System]
 
-ZenKensaは、製造業の品質保証向けに設計されたプロフェッショナルなAI表面検査システムです。[ZenKensa is a professional AI surface inspection system designed for manufacturing quality assurance.]
+## 🏭 **Japanese Industrial Inspection System** [日本の工業用検査システム]
 
----🚀 **主な機能 **[Key Features]
+**ZenKensaは日本の中小企業向けに設計されたAI支援型金属表面検査システムです。AIは参考指標として機能し、最終判断は検査担当者の責任において行われます。**
+
+**ZenKensa is an AI-assisted metal surface inspection system designed for Japanese SMEs. AI functions as a reference indicator, with final judgment made by the responsible inspector.**
+
+---
+
+## ⚠️ **AI Responsibility Disclaimer** [AI責任の明確化]
+
+**重要：本システムにおけるAI解析結果は参考指標です。最終的な合否判定は、必ず検査担当者の責任において行ってください。**
+
+**IMPORTANT: AI analysis results in this system are reference indicators only. Final pass/fail judgment must always be made by the responsible inspector.**
+
+---
+
+## 📋 **System Architecture** [システムアーキテクチャ]
+
+### **Two-Stage Inspection Pipeline** [二段階検査パイプライン]
+
+1. **Metal Surface Validation** [金属表面検証]
+   - 画像が金属表面として適切か検証
+   - 非金属画像は自動的に拒否
+
+2. **Defect Inspection** [欠陥検査]
+   - 金属表面検証通過後のみ実行
+   - 欠陥リスクを算出
+
+### **AI Reference Positioning** [AI参考指標の位置付け]
+
+- ✅ **AIは支援ツール** [AI as support tool]
+- ✅ **人間が最終判断者** [Human as final decision maker]
+- ✅ **責任境界明確** [Clear responsibility boundaries]
+
+---
+
+## 📂 **Metal Surface Validation Dataset** [金属表面検証データセット]
+
+The system includes a specialized binary classification dataset for metal surface validation:
+
+**Binary Classes:**
+- **metal**: Close-up industrial metallic surfaces suitable for inspection
+- **non_metal**: Visually distinct, non-inspectable surfaces such as rubber, plastic, wood, fabric, and background-heavy images
+
+**Dataset Structure:**
+```
+dataset_metal_validator/
+├── train/ (70% - 1,006 images)
+│   ├── metal/ (503 images)
+│   └── non_metal/ (503 images)
+├── val/ (15% - 216 images)
+│   ├── metal/ (108 images)
+│   └── non_metal/ (108 images)
+└── test/ (15% - 218 images)
+    ├── metal/ (109 images)
+    └── non_metal/ (109 images)
+```
+
+**Key Features:**
+- **Perfect 50/50 Class Balance**: Ensures unbiased model training
+- **Zero Data Leakage**: Strict separation between train/val/test splits
+- **Industrial Realism**: Non_metal class contains visually distinct surfaces designed to teach rejection behavior for unsupported inspection inputs
+- **Quality Validation**: All images validated for proper classification and split integrity
+
+**Purpose**: The non_metal class is intentionally designed to teach rejection behavior for unsupported inspection inputs, ensuring the system only processes appropriate metallic surfaces.
+
+---
+
+🚀 **主な機能 **[Key Features]
 
 **OpenCVによる高性能な検知解析** [High-performance OpenCV detection]: 高速な画像処理と最適化されたライブラリにより、高解像度の画像でも遅延なく瞬時に解析を行います。[Utilizes optimized OpenCV libraries and auto-resizing for instantaneous analysis of high-resolution images without delay.]
 

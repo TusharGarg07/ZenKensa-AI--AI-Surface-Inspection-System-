@@ -1,0 +1,78 @@
+{
+  "report_title": "ZENKENSA 検査報告書",
+  "report_subtitle": "（Industrial Surface Inspection Report）",
+  "inspection_id": "5d3775fd-339f-4500-9bfa-97096faa08b5",
+  "inspection_datetime": "2026-01-18 23:38",
+  "検査情報": {
+    "検査員名": "Edge Inspector",
+    "Inspector Name": "Edge Inspector",
+    "バッチID": "BATCH-001",
+    "Batch ID": "BATCH-001",
+    "製品情報": "金属表面検査",
+    "Product Description": "Metal Surface Inspection"
+  },
+  "Inspection Information": {
+    "検査員名": "Edge Inspector",
+    "Inspector Name": "Edge Inspector",
+    "バッチID": "BATCH-001",
+    "Batch ID": "BATCH-001",
+    "製品情報": "金属表面検査",
+    "Product Description": "Metal Surface Inspection"
+  },
+  "判定結果": {
+    "判定": "不合格",
+    "Status": "FAIL",
+    "健全性スコア": 0,
+    "Surface Health Score": 0
+  },
+  "Inspection Result": {
+    "判定": "不合格",
+    "Status": "FAIL",
+    "健全性スコア": 0,
+    "Surface Health Score": 0
+  },
+  "AI解析結果": {
+    "metal_surface_validation_score": 0,
+    "defect_risk_indicator": 0,
+    "disclaimer": "※ 本解析結果はAIによる参考指標です。最終判断は検査担当者の責任において行ってください。",
+    "disclaimer_en": "This result is an AI-based reference indicator. Final judgment must be made by the responsible inspector."
+  },
+  "AI Analysis - Reference Only": {
+    "metal_surface_validation_score": 0,
+    "defect_risk_indicator": 0,
+    "disclaimer": "※ 本解析結果はAIによる参考指標です。最終判断は検査担当者の責任において行ってください。",
+    "disclaimer_en": "This result is an AI-based reference indicator. Final judgment must be made by the responsible inspector."
+  },
+  "判定理由": {
+    "japanese": "許容基準を超える欠陥傾向が検出されました。品質基準を満たしていません。",
+    "english": "Defect patterns exceed acceptable limits."
+  },
+  "Decision Explanation": {
+    "japanese": "許容基準を超える欠陥傾向が検出されました。品質基準を満たしていません。",
+    "english": "Defect patterns exceed acceptable limits."
+  },
+  "検査履歴情報": {
+    "使用モデル": {
+      "金属表面判定モデル": "v1.0",
+      "Metal Surface Validator": "v1.0",
+      "欠陥検査モデル": "v1.0",
+      "Defect Inspection Model": "v1.0"
+    }
+  },
+  "Inspection Metadata": {
+    "使用モデル": {
+      "金属表面判定モデル": "v1.0",
+      "Metal Surface Validator": "v1.0",
+      "欠陥検査モデル": "v1.0",
+      "Defect Inspection Model": "v1.0"
+    }
+  },
+  "system_name": "ZenKensa Edge AI",
+  "system_description": "工業用表面検査支援システム",
+  "system_description_en": "Industrial Surface Inspection Support System",
+  "footer_note": "※ 本レポートは品質管理支援を目的としています。",
+  "footer_note_en": "This report is intended for quality management support.",
+  "timestamp_iso": "2026-01-18T23:38:27.954957",
+  "report_version": "1.0",
+  "encoding": "UTF-8"
+}
