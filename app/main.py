@@ -30,13 +30,26 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # Disable GPU
 
 # Initialize FastAPI app
 app = FastAPI(title="ZenKensa Edge AI - Surface Inspection System")
-app.mount('/static', StaticFiles(directory='app/static'), name='static')
-templates = Jinja2Templates(directory='app/templates')
 
-# Root endpoint for Render health checks
+# Templates
+templates = Jinja2Templates(directory="app/templates")
+
+# Static (future safe)
+if os.path.exists("app/static"):
+    app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+# Health check (Render needs this)
 @app.get("/")
 def root():
     return {"status": "ZenKensa running"}
+
+# UI ROUTE (THIS WAS MISSING ON RENDER)
+@app.get("/ui", response_class=HTMLResponse)
+async def ui(request: Request):
+    return templates.TemplateResponse(
+        "index.html",
+        {"request": request}
+    )
 
 # Global TFLite interpreters
 metal_validator_interpreter = None
