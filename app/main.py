@@ -18,10 +18,25 @@ import tensorflow as tf
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Absolute path resolution for Render deployment
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+METAL_MODEL_PATH = os.path.join(BASE_DIR, "metal_surface_validator.tflite")
+DEFECT_MODEL_PATH = os.path.join(BASE_DIR, "zenkensa_model.tflite")
+REPORTS_DIR = os.path.join(BASE_DIR, "reports")
+
+# Render-safe TensorFlow configuration
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # Suppress TensorFlow logs
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # Disable GPU
+
 # Initialize FastAPI app
 app = FastAPI(title="ZenKensa Edge AI - Surface Inspection System")
 app.mount('/static', StaticFiles(directory='app/static'), name='static')
 templates = Jinja2Templates(directory='app/templates')
+
+# Root endpoint for Render health checks
+@app.get("/")
+def root():
+    return {"status": "ZenKensa running"}
 
 # Global TFLite interpreters
 metal_validator_interpreter = None
@@ -29,7 +44,8 @@ defect_inspector_interpreter = None
 
 # Database Setup
 def init_db():
-    conn = sqlite3.connect('inspections.db')
+    db_path = os.path.join(BASE_DIR, 'inspections.db')
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS inspections (
@@ -44,6 +60,7 @@ def init_db():
     ''')
     conn.commit()
     conn.close()
+    logger.info(f"✅ Database initialized: {db_path}")
 
 # Email Alert Function
 def send_email_alert(data):
@@ -60,28 +77,36 @@ async def startup_event():
     # Initialize database
     init_db()
     
-    # Ensure reports directory exists
-    os.makedirs('app/static/reports', exist_ok=True)
-    os.makedirs('reports', exist_ok=True)  # For JSON reports
+    # Ensure reports directory exists with absolute paths
+    os.makedirs(os.path.join(BASE_DIR, 'app/static/reports'), exist_ok=True)
+    os.makedirs(REPORTS_DIR, exist_ok=True)  # For JSON reports
+    logger.info(f"✅ Reports directory created: {REPORTS_DIR}")
     
-    # Load Metal Surface Validator Model
+    # Load Metal Surface Validator Model with absolute path
     try:
-        metal_model_path = os.path.join(os.getcwd(), "metal_surface_validator.tflite")
-        metal_validator_interpreter = tf.lite.Interpreter(model_path=metal_model_path)
-        metal_validator_interpreter.allocate_tensors()
-        logger.info("✅ Metal Surface Validator model loaded successfully")
+        if os.path.exists(METAL_MODEL_PATH):
+            metal_validator_interpreter = tf.lite.Interpreter(model_path=METAL_MODEL_PATH)
+            metal_validator_interpreter.allocate_tensors()
+            logger.info(f"✅ Metal Surface Validator loaded: {METAL_MODEL_PATH}")
+        else:
+            logger.error(f"❌ Metal Surface Validator not found: {METAL_MODEL_PATH}")
+            metal_validator_interpreter = None
     except Exception as e:
-        logger.error(f"❌ Error loading Metal Surface Validator model: {e}")
+        logger.error(f"❌ Error loading Metal Surface Validator: {e}")
         metal_validator_interpreter = None
     
-    # Load Defect Inspection Model
+    # Load Defect Inspection Model with absolute path
     try:
-        defect_model_path = os.path.join(os.getcwd(), "zenkensa_model.tflite")
-        defect_inspector_interpreter = tf.lite.Interpreter(model_path=defect_model_path)
-        defect_inspector_interpreter.allocate_tensors()
-        logger.info("✅ Defect Inspection model loaded successfully")
+        if os.path.exists(DEFECT_MODEL_PATH):
+            defect_inspector_interpreter = tf.lite.Interpreter(model_path=DEFECT_MODEL_PATH)
+            defect_inspector_interpreter.allocate_tensors()
+            logger.info(f"✅ Defect Inspection loaded: {DEFECT_MODEL_PATH}")
+        else:
+            logger.error(f"❌ Defect Inspection not found: {DEFECT_MODEL_PATH}")
+            defect_inspector_interpreter = None
     except Exception as e:
-        logger.error(f"❌ Error loading Defect Inspection model: {e}")
+        logger.error(f"❌ Error loading Defect Inspection: {e}")
+        defect_inspector_interpreter = None
         defect_inspector_interpreter = None
     
     if metal_validator_interpreter and defect_inspector_interpreter:
@@ -207,10 +232,10 @@ def generate_inspection_report(data):
     }
     
     # === FAIL-SAFE FILE WRITING ===
-    report_path = f"reports/inspection_{inspection_id}.json"
+    report_path = os.path.join(REPORTS_DIR, f"inspection_{inspection_id}.json")
     try:
-        # Ensure reports directory exists
-        os.makedirs('reports', exist_ok=True)
+        # Ensure reports directory exists (redundant but safe)
+        os.makedirs(REPORTS_DIR, exist_ok=True)
         
         # Write report with UTF-8 encoding
         with open(report_path, 'w', encoding='utf-8') as f:
@@ -428,7 +453,8 @@ async def predict(file: UploadFile = File(...)):
         
         # Save to database (only for valid inspections)
         try:
-            conn = sqlite3.connect('inspections.db')
+            db_path = os.path.join(BASE_DIR, 'inspections.db')
+            conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
             cursor.execute('''
                 INSERT INTO inspections (timestamp, inspector, batch, status, score, defects)
@@ -477,12 +503,13 @@ async def health_check():
 async def get_inspection_report(inspection_id: str):
     """Get inspection report by ID"""
     try:
-        report_path = f"reports/inspection_{inspection_id}.json"
+        report_path = os.path.join(REPORTS_DIR, f"inspection_{inspection_id}.json")
         
         if not os.path.exists(report_path):
+            logger.warning(f"Report not found: {report_path}")
             raise HTTPException(status_code=404, detail="Inspection report not found")
         
-        with open(report_path, 'r') as f:
+        with open(report_path, 'r', encoding='utf-8') as f:
             report = json.load(f)
         
         return JSONResponse(report)
@@ -491,7 +518,7 @@ async def get_inspection_report(inspection_id: str):
         raise
     except Exception as e:
         logger.error(f"❌ Report retrieval error: {e}")
-        raise HTTPException(status_code=500, detail=f"Report retrieval failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Report retrieval failed")
 
 # Web interface endpoints (existing)
 @app.get('/', response_class=HTMLResponse)
@@ -503,7 +530,8 @@ async def generate_report():
     """Generate PDF report with Japanese font support"""
     try:
         # Get latest inspection data
-        conn = sqlite3.connect('inspections.db')
+        db_path = os.path.join(BASE_DIR, 'inspections.db')
+        conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         cursor.execute('SELECT * FROM inspections ORDER BY id DESC LIMIT 1')
         latest = cursor.fetchone()
