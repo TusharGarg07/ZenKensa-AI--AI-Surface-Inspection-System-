@@ -46,18 +46,15 @@ templates = Jinja2Templates(directory="app/templates")
 if os.path.exists("app/static"):
     app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
-# Health check (Render needs this)
-@app.get("/")
-def root():
-    return {"status": "ZenKensa running"}
+# Main UI on root path
+@app.get("/", response_class=HTMLResponse)
+def show_ui(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
-# UI ROUTE (THIS WAS MISSING ON RENDER)
-@app.get("/ui", response_class=HTMLResponse)
-async def ui(request: Request):
-    return templates.TemplateResponse(
-        "index.html",
-        {"request": request}
-    )
+# Health check for Render
+@app.get("/api/health")
+def health():
+    return {"status": "ZenKensa running"}
 
 # Global TFLite interpreters
 metal_validator_interpreter = None
@@ -497,6 +494,64 @@ async def health_check():
         "defect_inspector_loaded": defect_ready
     }
 
+# PDF Generator Function
+def generate_pdf_report(report: dict, file_path: str):
+    """Generate PDF report from JSON data"""
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+
+    # Title
+    pdf.set_font("Helvetica", "B", 18)
+    pdf.cell(0, 10, report["report_title"], ln=True, align="C")
+
+    pdf.set_font("Helvetica", "", 12)
+    pdf.cell(0, 8, report["report_subtitle"], ln=True, align="C")
+    pdf.ln(5)
+
+    # Inspection Information
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(0, 8, "検査基本情報", ln=True)
+
+    info = report["Inspection Information"]
+    pdf.set_font("Helvetica", "", 11)
+    pdf.cell(0, 7, f"検査ID: {report['inspection_id']}", ln=True)
+    pdf.cell(0, 7, f"検査日時: {report['inspection_datetime']}", ln=True)
+    pdf.cell(0, 7, f"検査員: {info['Inspector Name']}", ln=True)
+    pdf.cell(0, 7, f"バッチID: {info['Batch ID']}", ln=True)
+    pdf.cell(0, 7, f"製品情報: {info['Product Description']}", ln=True)
+
+    pdf.ln(4)
+    result = report["Inspection Result"]
+
+    # Judgment Result
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(0, 8, "判定結果", ln=True)
+
+    status = result["Status"]
+    if status == "PASS":
+        pdf.set_text_color(10, 125, 50)
+    else:
+        pdf.set_text_color(200, 40, 40)
+
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.cell(0, 10, f"{result['判定']} ({status})", ln=True)
+
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font("Helvetica", "", 11)
+    pdf.cell(0, 7, f"健全性スコア: {result['Surface Health Score']}", ln=True)
+
+    pdf.ln(3)
+    reason = report["Decision Explanation"]
+    pdf.multi_cell(0, 7, reason["japanese"])
+
+    pdf.ln(4)
+    ai = report["AI Analysis - Reference Only"]
+    pdf.set_font("Helvetica", "I", 9)
+    pdf.multi_cell(0, 6, ai["disclaimer"])
+
+    pdf.output(file_path)
+
 # Load report function
 def load_report_from_storage(inspection_id: str):
     """Load inspection report from JSON file"""
@@ -526,195 +581,20 @@ def view_report(request: Request, inspection_id: str):
     )
 
 # PDF Report Export Endpoint
-@app.get('/report/{inspection_id}/pdf')
-async def export_inspection_report_pdf(inspection_id: str):
-    """Export inspection report as PDF"""
-    try:
-        report_path = os.path.join(REPORTS_DIR, f"{inspection_id}.json")
-        
-        if not os.path.exists(report_path):
-            logger.warning(f"Report not found: {report_path}")
-            raise HTTPException(status_code=404, detail="Inspection report not found")
-        
-        with open(report_path, 'r', encoding='utf-8') as f:
-            report = json.load(f)
-        
-        # Create PDF with Japanese font support
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.set_auto_page_break(auto=True, margin=15)
-        
-        # Set font (use Arial for compatibility, Japanese text will be handled as UTF-8)
-        pdf.set_font('Arial', 'B', 16)
-        
-        # Header
-        pdf.cell(0, 10, 'ZENKENSA', 0, 1, 'C')
-        pdf.set_font('Arial', '', 12)
-        pdf.cell(0, 8, 'AI Surface Inspection System', 0, 1, 'C')
-        pdf.ln(10)
-        
-        # Inspection Metadata
-        pdf.set_font('Arial', 'B', 14)
-        pdf.cell(0, 10, 'Inspection Information', 0, 1, 'L')
-        pdf.set_font('Arial', '', 11)
-        
-        metadata = [
-            ('Inspection ID', report.get('inspection_id', 'N/A')),
-            ('Inspection DateTime', report.get('inspection_datetime', 'N/A')),
-            ('Inspector Name', report.get('検査情報', {}).get('検査員名', 'N/A')),
-            ('Batch ID', report.get('検査情報', {}).get('バッチID', 'N/A')),
-            ('Product Description', report.get('検査情報', {}).get('製品情報', 'N/A'))
-        ]
-        
-        for label, value in metadata:
-            pdf.cell(60, 8, label, 0, 0, 'L')
-            pdf.cell(0, 8, value, 0, 1, 'L')
-        
-        pdf.ln(10)
-        
-        # Result Section
-        pdf.set_font('Arial', 'B', 14)
-        pdf.cell(0, 10, 'Inspection Result', 0, 1, 'L')
-        
-        result_status = report.get('判定結果', {}).get('判定', 'N/A')
-        health_score = report.get('判定結果', {}).get('健全性スコア', 'N/A')
-        
-        # Highlight result
-        if result_status == '合格':
-            pdf.set_fill_color(200, 255, 200)
-        else:
-            pdf.set_fill_color(255, 200, 200)
-        
-        pdf.cell(0, 8, f'Status: {result_status}', 0, 1, 'L', fill=True)
-        pdf.cell(0, 8, f'Surface Health Score: {health_score}%', 0, 1, 'L', fill=True)
-        
-        pdf.ln(10)
-        
-        # AI Analysis Section
-        pdf.set_font('Arial', 'B', 14)
-        pdf.cell(0, 10, 'AI Analysis Results', 0, 1, 'L')
-        pdf.set_font('Arial', '', 11)
-        
-        ai_results = report.get('AI解析結果', {})
-        metal_score = ai_results.get('metal_surface_validation_score', 'N/A')
-        defect_risk = ai_results.get('defect_risk_indicator', 'N/A')
-        
-        pdf.cell(0, 8, f'Metal Surface Validation Score: {metal_score}', 0, 1, 'L')
-        pdf.cell(0, 8, f'Defect Risk Indicator: {defect_risk}', 0, 1, 'L')
-        
-        pdf.ln(10)
-        
-        # Decision Explanation
-        pdf.set_font('Arial', 'B', 14)
-        pdf.cell(0, 10, 'Decision Explanation', 0, 1, 'L')
-        pdf.set_font('Arial', '', 11)
-        
-        explanation = report.get('判定理由', {})
-        japanese_explanation = explanation.get('japanese', 'N/A')
-        english_explanation = explanation.get('english', 'N/A')
-        
-        pdf.multi_cell(0, 8, f'Japanese: {japanese_explanation}')
-        pdf.multi_cell(0, 8, f'English: {english_explanation}')
-        
-        pdf.ln(10)
-        
-        # Disclaimer
-        pdf.set_font('Arial', 'B', 12)
-        pdf.cell(0, 8, 'Important Notice:', 0, 1, 'L')
-        pdf.set_font('Arial', '', 10)
-        disclaimer = ai_results.get('disclaimer', 'N/A')
-        disclaimer_en = ai_results.get('disclaimer_en', 'N/A')
-        
-        pdf.multi_cell(0, 6, f'{disclaimer}')
-        pdf.multi_cell(0, 6, f'{disclaimer_en}')
-        
-        pdf.ln(10)
-        
-        # Footer
-        pdf.set_font('Arial', 'I', 10)
-        pdf.cell(0, 8, 'ZenKensa Edge AI - Industrial Surface Inspection Support System', 0, 1, 'C')
-        pdf.cell(0, 6, f'Generated: {report.get("timestamp_iso", "N/A")}', 0, 1, 'C')
-        
-        # Generate PDF content
-        pdf_content = pdf.output(dest='S').encode('latin1')
-        
-        # Create filename
-        filename = f"ZENKENSA_Report_{inspection_id}.pdf"
-        
-        return FileResponse(
-            path_or_file=io.BytesIO(pdf_content),
-            filename=filename,
-            media_type="application/pdf"
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"❌ PDF export error: {e}")
-        raise HTTPException(status_code=500, detail="PDF export failed")
+@app.get("/report/{inspection_id}/pdf")
+def download_pdf_report(inspection_id: str):
+    report = load_report_from_storage(inspection_id)
+    if not report:
+        raise HTTPException(status_code=404, detail="Inspection report not found")
 
-# Web interface endpoints (existing)
-@app.get('/', response_class=HTMLResponse)
-async def home(request: Request):
-    return templates.TemplateResponse('index_new.html', {"request": request})
+    pdf_path = os.path.join(REPORTS_DIR, f"{inspection_id}.pdf")
+    generate_pdf_report(report, pdf_path)
 
-@app.get('/report')
-async def generate_report():
-    """Generate PDF report with Japanese font support"""
-    try:
-        # Get latest inspection data
-        db_path = os.path.join(BASE_DIR, 'inspections.db')
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM inspections ORDER BY id DESC LIMIT 1')
-        latest = cursor.fetchone()
-        conn.close()
-        
-        if not latest:
-            raise HTTPException(status_code=404, detail="No inspection data found")
-        
-        # Create PDF with Japanese font
-        pdf = FPDF()
-        pdf.add_page()
-        
-        # Add Japanese font (IPAex Gothic)
-        try:
-            pdf.add_font('IPAex', '', 'app/static/fonts/ipaexg.ttf', uni=True)
-            pdf.set_font('IPAex', '', 12)
-        except:
-            pdf.set_font('Arial', '', 12)
-        
-        # Report content
-        pdf.cell(0, 10, 'ZenKensa AI Surface Inspection Report', ln=True, align='C')
-        pdf.ln(10)
-        pdf.cell(0, 10, f'Timestamp: {latest[1]}', ln=True)
-        pdf.cell(0, 10, f'Inspector: {latest[2]}', ln=True)
-        pdf.cell(0, 10, f'Batch: {latest[3]}', ln=True)
-        pdf.cell(0, 10, f'Status: {latest[4]}', ln=True)
-        pdf.cell(0, 10, f'Health Score: {latest[5]}', ln=True)
-        pdf.cell(0, 10, f'Defects Found: {latest[6]}', ln=True)
-        
-        # Add detected image if available
-        if os.path.exists('detected_image.jpg'):
-            pdf.ln(10)
-            pdf.cell(0, 10, 'Detected Image:', ln=True)
-            pdf.image('detected_image.jpg', x=10, y=100, w=100)
-        
-        # Save PDF
-        report_filename = f"inspection_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-        report_path = f"app/static/reports/{report_filename}"
-        pdf.output(report_path)
-        
-        return FileResponse(report_path, media_type='application/pdf', filename=report_filename)
-        
-    except Exception as e:
-        logger.error(f"❌ Report generation error: {e}")
-        raise HTTPException(status_code=500, detail=f"Report generation failed: {str(e)}")
-
-# Static file serving
-@app.get('/static/reports/<filename>')
-async def get_report(filename: str):
-    return FileResponse(f'app/static/reports/{filename}')
+    return FileResponse(
+        pdf_path,
+        media_type="application/pdf",
+        filename=f"ZENKENSA_Report_{inspection_id}.pdf"
+    )
 
 if __name__ == "__main__":
     import uvicorn
