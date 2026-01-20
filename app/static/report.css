@@ -1,0 +1,356 @@
+/* ZENKENSA Industrial Report CSS */
+/* Japanese Factory Style - Clean, Professional, Print-Friendly */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: "Noto Sans JP", "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background-color: #f5f5f5;
+    padding: 20px;
+}
+
+.report-container {
+    max-width: 800px;
+    margin: 0 auto;
+    background: white;
+    padding: 40px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+}
+
+/* Header */
+.report-header {
+    text-align: center;
+    margin-bottom: 40px;
+    padding-bottom: 20px;
+    border-bottom: 3px solid #2c5aa0;
+}
+
+.report-header h1 {
+    font-size: 32px;
+    font-weight: 700;
+    color: #2c5aa0;
+    margin-bottom: 8px;
+    letter-spacing: 2px;
+}
+
+.report-header h2 {
+    font-size: 18px;
+    font-weight: 500;
+    color: #666;
+}
+
+.english {
+    font-size: 0.85em;
+    color: #888;
+    font-weight: 400;
+}
+
+/* Sections */
+section {
+    margin-bottom: 30px;
+}
+
+section h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #2c5aa0;
+    margin-bottom: 15px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+/* Metadata Table */
+.metadata-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+.metadata-table th {
+    background-color: #f8f9fa;
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    color: #333;
+    border: 1px solid #dee2e6;
+    width: 30%;
+}
+
+.metadata-table td {
+    padding: 12px;
+    border: 1px solid #dee2e6;
+    background-color: white;
+}
+
+/* Result Section */
+.result-box {
+    border: 2px solid;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.result-box.pass {
+    border-color: #28a745;
+    background-color: #f8fff9;
+}
+
+.result-box.fail {
+    border-color: #dc3545;
+    background-color: #fff8f8;
+}
+
+.result-status,
+.result-score {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.result-status:last-child,
+.result-score:last-child {
+    margin-bottom: 0;
+}
+
+.status-label,
+.score-label {
+    font-weight: 600;
+    color: #333;
+}
+
+.status-value,
+.score-value {
+    font-weight: 700;
+    font-size: 18px;
+}
+
+.result-box.pass .status-value,
+.result-box.pass .score-value {
+    color: #28a745;
+}
+
+.result-box.fail .status-value,
+.result-box.fail .score-value {
+    color: #dc3545;
+}
+
+/* AI Analysis Section */
+.ai-box {
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 20px;
+    background-color: #f8f9fa;
+}
+
+.ai-metric {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.ai-metric:last-child {
+    margin-bottom: 0;
+}
+
+.metric-label {
+    font-weight: 600;
+    color: #333;
+}
+
+.metric-value {
+    font-weight: 700;
+    color: #2c5aa0;
+    font-family: "Courier New", monospace;
+}
+
+/* Explanation Section */
+.explanation-box {
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 20px;
+    background-color: white;
+}
+
+.explanation-box p {
+    margin-bottom: 10px;
+}
+
+.explanation-box p:last-child {
+    margin-bottom: 0;
+}
+
+.explanation-box .japanese {
+    font-size: 16px;
+    font-weight: 500;
+    color: #333;
+}
+
+.explanation-box .english {
+    font-size: 14px;
+    color: #666;
+    font-style: italic;
+}
+
+/* Disclaimer Section */
+.disclaimer-section {
+    margin-top: 40px;
+}
+
+.disclaimer-box {
+    border: 2px solid #ffc107;
+    border-radius: 6px;
+    padding: 20px;
+    background-color: #fffdf7;
+}
+
+.disclaimer-box p {
+    margin-bottom: 10px;
+}
+
+.disclaimer-box p:last-child {
+    margin-bottom: 0;
+}
+
+.disclaimer-box .japanese {
+    font-size: 14px;
+    font-weight: 600;
+    color: #856404;
+}
+
+.disclaimer-box .english {
+    font-size: 12px;
+    color: #856404;
+    font-style: italic;
+}
+
+/* Footer */
+.report-footer {
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid #dee2e6;
+    text-align: center;
+}
+
+.footer-content {
+    font-size: 12px;
+    color: #666;
+}
+
+.system-name {
+    font-weight: 700;
+    color: #2c5aa0;
+    margin-bottom: 5px;
+}
+
+.system-description {
+    margin-bottom: 5px;
+}
+
+.report-info {
+    font-size: 10px;
+    color: #999;
+}
+
+/* Print Styles */
+@media print {
+    body {
+        background-color: white;
+        padding: 0;
+    }
+    
+    .report-container {
+        box-shadow: none;
+        border-radius: 0;
+        padding: 20px;
+        max-width: 100%;
+    }
+    
+    .report-header {
+        page-break-after: avoid;
+    }
+    
+    section {
+        page-break-inside: avoid;
+    }
+    
+    .result-section,
+    .ai-section,
+    .explanation-section {
+        page-break-inside: avoid;
+    }
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+    
+    .report-container {
+        padding: 20px;
+    }
+    
+    .report-header h1 {
+        font-size: 28px;
+    }
+    
+    .report-header h2 {
+        font-size: 16px;
+    }
+    
+    .metadata-table th,
+    .metadata-table td {
+        padding: 8px;
+        font-size: 14px;
+    }
+    
+    .result-status,
+    .result-score,
+    .ai-metric {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+    
+    .status-value,
+    .score-value,
+    .metric-value {
+        font-size: 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .report-container {
+        padding: 15px;
+    }
+    
+    .report-header h1 {
+        font-size: 24px;
+    }
+    
+    .metadata-table th,
+    .metadata-table td {
+        display: block;
+        width: 100%;
+        border: none;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .metadata-table th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+    }
+    
+    .metadata-table tr:last-child td {
+        border-bottom: none;
+    }
+}

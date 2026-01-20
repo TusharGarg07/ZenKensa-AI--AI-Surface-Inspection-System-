@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ report.report_title }}</title>
+  < style >
+    body {
+      font-family: "IPAexGothic", "Noto Sans JP", sans-serif;
+      background: #f5f7fa;
+      margin: 0;
+      padding: 24px;
+    }
+    .container {
+      max-width: 900px;
+      margin: auto;
+      background: #ffffff;
+      padding: 32px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 4px;
+    }
+    h2 {
+      text-align: center;
+      font-weight: normal;
+      color: #555;
+      margin-top: 0;
+    }
+    .section {
+      margin-top: 28px;
+    }
+    .section-title {
+      font-weight: bold;
+      border-left: 5px solid #1f3c88;
+      padding-left: 10px;
+      margin-bottom: 12px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px 10px;
+      text-align: left;
+    }
+    th {
+      background: #f0f2f5;
+      width: 30%;
+    }
+    .status-pass {
+      color: #0a7d32;
+      font-weight: bold;
+    }
+    .status-fail {
+      color: #c62828;
+      font-weight: bold;
+    }
+    .footer {
+      margin-top: 40px;
+      font-size: 12px;
+      color: #555;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <h1>{{ report.report_title }}</h1>
+    <h2>{{ report.report_subtitle }}</h2>
+
+    <div class="section">
+      <div class="section-title">検査基本情報</div>
+      <table>
+        <tr><th>検査ID</th><td>{{ report.inspection_id }}</td></tr>
+        <tr><th>検査日時</th><td>{{ report.inspection_datetime }}</td></tr>
+        <tr><th>検査員</th><td>{{ report["検査情報"]["検査員名"] }}</td></tr>
+        <tr><th>バッチID</th><td>{{ report["検査情報"]["バッチID"] }}</td></tr>
+        <tr><th>製品情報</th><td>{{ report["検査情報"]["製品情報"] }}</td></tr>
+      </table>
+    </div>
+
+    <div class="section">
+      <div class="section-title">判定結果</div>
+      <table>
+        <tr>
+          <th>判定</th>
+          <td class="{% if report['判定結果']['Status'] == 'PASS' %}status-pass{% else %}status-fail{% endif %}">
+            {{ report["判定結果"]["判定"] }} ({{ report["判定結果"]["Status"] }})
+          </td>
+        </tr>
+        <tr>
+          <th>健全性スコア</th>
+          <td>{{ report["判定結果"]["健全性スコア"] }}</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="section">
+      <div class="section-title">判定理由</div>
+      <p>{{ report["判定理由"]["japanese"] }}</p>
+    </div>
+
+    <div class="section">
+      <div class="section-title">AI解析結果（参考指標）</div>
+      <table>
+        <tr><th>金属表面判定スコア</th><td>{{ report["AI解析結果"]["metal_surface_validation_score"] }}</td></tr>
+        <tr><th>欠陥リスク指標</th><td>{{ report["AI解析結果"]["defect_risk_indicator"] }}</td></tr>
+      </table>
+    </div>
+
+    <div class="footer">
+      <p>{{ report.footer_note }}</p>
+      <p>{{ report.footer_note_en }}</p>
+    </div>
+
+  </div>
+</body>
+</html>
