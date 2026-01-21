@@ -509,7 +509,7 @@ def generate_pdf_report(report: dict, file_path: str):
     pdf.cell(0, 8, report["report_subtitle"], ln=True, align="C")
     pdf.ln(5)
 
-    # Inspection Information
+    # Inspection Basic Information
     pdf.set_font("Helvetica", "B", 12)
     pdf.cell(0, 8, "検査基本情報", ln=True)
 
@@ -543,12 +543,36 @@ def generate_pdf_report(report: dict, file_path: str):
 
     pdf.ln(3)
     reason = report["Decision Explanation"]
-    pdf.multi_cell(0, 7, reason["japanese"])
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.cell(0, 7, "判定理由", ln=True)
+    pdf.set_font("Helvetica", "", 10)
+    pdf.multi_cell(0, 6, reason["japanese"])
+    pdf.ln(2)
+    pdf.set_font("Helvetica", "I", 9)
+    pdf.multi_cell(0, 5, reason["english"])
 
     pdf.ln(4)
     ai = report["AI Analysis - Reference Only"]
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(0, 8, "AI解析結果（参考指標）", ln=True)
+    
+    pdf.set_font("Helvetica", "", 10)
+    pdf.cell(0, 6, f"metal_surface_validation_score: {ai['metal_surface_validation_score']}", ln=True)
+    pdf.cell(0, 6, f"defect_risk_indicator: {ai['defect_risk_indicator']}", ln=True)
+    pdf.ln(3)
+    
     pdf.set_font("Helvetica", "I", 9)
-    pdf.multi_cell(0, 6, ai["disclaimer"])
+    pdf.multi_cell(0, 5, ai["disclaimer"])
+    pdf.ln(2)
+    pdf.multi_cell(0, 5, ai["disclaimer_en"])
+
+    pdf.ln(6)
+    pdf.set_font("Helvetica", "I", 8)
+    pdf.cell(0, 6, report["footer_note"], ln=True, align="C")
+    pdf.cell(0, 5, report["footer_note_en"], ln=True, align="C")
+    pdf.ln(2)
+    pdf.cell(0, 5, f"Generated: {report['timestamp_iso']}", ln=True, align="C")
+    pdf.cell(0, 5, "System: ZenKensa Edge AI", ln=True, align="C")
 
     pdf.output(file_path)
 
@@ -591,9 +615,12 @@ def download_pdf_report(inspection_id: str):
     generate_pdf_report(report, pdf_path)
 
     return FileResponse(
-        pdf_path,
+        path=pdf_path,
         media_type="application/pdf",
-        filename=f"ZENKENSA_Report_{inspection_id}.pdf"
+        filename=f"ZENKENSA_Report_{inspection_id}.pdf",
+        headers={
+            "Content-Disposition": "attachment"
+        }
     )
 
 if __name__ == "__main__":
