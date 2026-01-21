@@ -349,7 +349,8 @@ def inspect_defects(processed_img):
 # Business Logic (Decision Layer)
 def apply_business_logic(defect_score):
     """Apply industrial business logic for defect inspection results"""
-    if defect_score <= 0.5:
+    # Industrial safety requires high sensitivity to even small cracks
+    if defect_score <= 0.05:  # Changed from 0.5 to 0.05 for crack detection
         status = "PASS"
         # Smart Health Score for PASS: 100 - (P × 20) (Target 80-100%)
         health_score = 100 - (defect_score * 20)
@@ -501,36 +502,69 @@ def generate_pdf_report(report: dict, file_path: str):
         pdf = FPDF()
         pdf.set_auto_page_break(auto=True, margin=15)
         pdf.add_page()
-
-        # Title with safety check
-        title = report.get("report_title", "ZENKENSA Inspection Report")
-        subtitle = report.get("report_subtitle", "Industrial Surface Inspection Report")
         
-        pdf.set_font("Arial", "B", 18)
+        # Add Japanese font support
+        font_path = os.path.join(BASE_DIR, 'app/static/fonts/ipaexg.ttf')
+        font_family = 'Arial'  # Default fallback
+        use_japanese = False
+        
+        # Only try to add font if file exists and has content
+        if os.path.exists(font_path) and os.path.getsize(font_path) > 0:
+            try:
+                pdf.add_font('Japanese', '', font_path, uni=True)
+                font_family = 'Japanese'
+                use_japanese = True
+            except:
+                font_family = 'Arial'  # Fallback if font loading fails
+        
+        # Title with safety check
+        if use_japanese:
+            title = report.get("report_title", "ZENKENSA 検査報告書")
+            subtitle = report.get("report_subtitle", "（Industrial Surface Inspection Report）")
+        else:
+            title = "ZENKENSA Inspection Report"
+            subtitle = "Industrial Surface Inspection Report"
+        
+        pdf.set_font(font_family, 'B', 18)
         pdf.cell(0, 10, title, ln=True, align="C")
 
-        pdf.set_font("Arial", "", 12)
+        pdf.set_font(font_family, '', 12)
         pdf.cell(0, 8, subtitle, ln=True, align="C")
         pdf.ln(5)
 
         # Inspection Basic Information with safety check
-        pdf.set_font("Arial", "B", 12)
-        pdf.cell(0, 8, "Inspection Basic Information", ln=True)
+        if use_japanese:
+            pdf.set_font(font_family, 'B', 12)
+            pdf.cell(0, 8, "検査基本情報", ln=True)
+        else:
+            pdf.set_font(font_family, 'B', 12)
+            pdf.cell(0, 8, "Inspection Basic Information", ln=True)
 
         info = report.get("Inspection Information", {})
-        pdf.set_font("Arial", "", 11)
-        pdf.cell(0, 7, f"Inspection ID: {report.get('inspection_id', 'N/A')}", ln=True)
-        pdf.cell(0, 7, f"Inspection DateTime: {report.get('inspection_datetime', 'N/A')}", ln=True)
-        pdf.cell(0, 7, f"Inspector: {info.get('Inspector Name', 'N/A')}", ln=True)
-        pdf.cell(0, 7, f"Batch ID: {info.get('Batch ID', 'N/A')}", ln=True)
-        pdf.cell(0, 7, f"Product Description: {info.get('Product Description', 'N/A')}", ln=True)
+        pdf.set_font(font_family, '', 11)
+        if use_japanese:
+            pdf.cell(0, 7, f"検査ID: {report.get('inspection_id', 'N/A')}", ln=True)
+            pdf.cell(0, 7, f"検査日時: {report.get('inspection_datetime', 'N/A')}", ln=True)
+            pdf.cell(0, 7, f"検査員: {info.get('Inspector Name', 'N/A')}", ln=True)
+            pdf.cell(0, 7, f"バッチID: {info.get('Batch ID', 'N/A')}", ln=True)
+            pdf.cell(0, 7, f"製品情報: {info.get('Product Description', 'N/A')}", ln=True)
+        else:
+            pdf.cell(0, 7, f"Inspection ID: {report.get('inspection_id', 'N/A')}", ln=True)
+            pdf.cell(0, 7, f"Inspection DateTime: {report.get('inspection_datetime', 'N/A')}", ln=True)
+            pdf.cell(0, 7, f"Inspector: {info.get('Inspector Name', 'N/A')}", ln=True)
+            pdf.cell(0, 7, f"Batch ID: {info.get('Batch ID', 'N/A')}", ln=True)
+            pdf.cell(0, 7, f"Product Description: {info.get('Product Description', 'N/A')}", ln=True)
 
         pdf.ln(4)
         result = report.get("Inspection Result", {})
 
         # Judgment Result with safety check
-        pdf.set_font("Arial", "B", 12)
-        pdf.cell(0, 8, "Judgment Result", ln=True)
+        if use_japanese:
+            pdf.set_font(font_family, 'B', 12)
+            pdf.cell(0, 8, "判定結果", ln=True)
+        else:
+            pdf.set_font(font_family, 'B', 12)
+            pdf.cell(0, 8, "Judgment Result", ln=True)
 
         status = result.get("Status", "UNKNOWN")
         if status == "PASS":
@@ -538,41 +572,52 @@ def generate_pdf_report(report: dict, file_path: str):
         else:
             pdf.set_text_color(200, 40, 40)
 
-        pdf.set_font("Arial", "B", 14)
+        pdf.set_font(font_family, 'B', 14)
         judgment = result.get("判定", status)
         pdf.cell(0, 10, f"{judgment} ({status})", ln=True)
 
         pdf.set_text_color(0, 0, 0)
-        pdf.set_font("Arial", "", 11)
-        pdf.cell(0, 7, f"Surface Health Score: {result.get('Surface Health Score', 'N/A')}", ln=True)
+        pdf.set_font(font_family, '', 11)
+        if use_japanese:
+            pdf.cell(0, 7, f"健全性スコア: {result.get('Surface Health Score', 'N/A')}", ln=True)
+        else:
+            pdf.cell(0, 7, f"Surface Health Score: {result.get('Surface Health Score', 'N/A')}", ln=True)
 
         pdf.ln(3)
         reason = report.get("Decision Explanation", {})
-        pdf.set_font("Arial", "B", 11)
-        pdf.cell(0, 7, "Decision Reason", ln=True)
-        pdf.set_font("Arial", "", 10)
+        if use_japanese:
+            pdf.set_font(font_family, 'B', 11)
+            pdf.cell(0, 7, "判定理由", ln=True)
+        else:
+            pdf.set_font(font_family, 'B', 11)
+            pdf.cell(0, 7, "Decision Reason", ln=True)
+        pdf.set_font(font_family, '', 10)
         pdf.multi_cell(0, 6, reason.get("japanese", "N/A"))
         pdf.ln(2)
-        pdf.set_font("Arial", "I", 9)
+        pdf.set_font(font_family, 'I', 9)
         pdf.multi_cell(0, 5, reason.get("english", "N/A"))
 
         pdf.ln(4)
         ai = report.get("AI Analysis - Reference Only", {})
-        pdf.set_font("Arial", "B", 12)
-        pdf.cell(0, 8, "AI Analysis Results (Reference Only)", ln=True)
+        if use_japanese:
+            pdf.set_font(font_family, 'B', 12)
+            pdf.cell(0, 8, "AI解析結果（参考指標）", ln=True)
+        else:
+            pdf.set_font(font_family, 'B', 12)
+            pdf.cell(0, 8, "AI Analysis Results (Reference Only)", ln=True)
         
-        pdf.set_font("Arial", "", 10)
+        pdf.set_font(font_family, '', 10)
         pdf.cell(0, 6, f"metal_surface_validation_score: {ai.get('metal_surface_validation_score', 'N/A')}", ln=True)
         pdf.cell(0, 6, f"defect_risk_indicator: {ai.get('defect_risk_indicator', 'N/A')}", ln=True)
         pdf.ln(3)
         
-        pdf.set_font("Arial", "I", 9)
+        pdf.set_font(font_family, 'I', 9)
         pdf.multi_cell(0, 5, ai.get("disclaimer", "N/A"))
         pdf.ln(2)
         pdf.multi_cell(0, 5, ai.get("disclaimer_en", "N/A"))
 
         pdf.ln(6)
-        pdf.set_font("Arial", "I", 8)
+        pdf.set_font(font_family, 'I', 8)
         pdf.cell(0, 6, report.get("footer_note", "N/A"), ln=True, align="C")
         pdf.cell(0, 5, report.get("footer_note_en", "N/A"), ln=True, align="C")
         pdf.ln(2)
@@ -619,6 +664,7 @@ def download_pdf_report(inspection_id: str):
         if not report:
             raise HTTPException(status_code=404, detail="Inspection report not found")
 
+        # Use absolute path for Render compatibility
         pdf_path = os.path.join(REPORTS_DIR, f"{inspection_id}.pdf")
         generate_pdf_report(report, pdf_path)
 
