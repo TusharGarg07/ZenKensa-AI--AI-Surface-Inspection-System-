@@ -497,84 +497,91 @@ async def health_check():
 # PDF Generator Function
 def generate_pdf_report(report: dict, file_path: str):
     """Generate PDF report from JSON data"""
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.add_page()
+    try:
+        pdf = FPDF()
+        pdf.set_auto_page_break(auto=True, margin=15)
+        pdf.add_page()
 
-    # Title
-    pdf.set_font("Helvetica", "B", 18)
-    pdf.cell(0, 10, report["report_title"], ln=True, align="C")
+        # Title with safety check
+        title = report.get("report_title", "ZENKENSA Inspection Report")
+        subtitle = report.get("report_subtitle", "Industrial Surface Inspection Report")
+        
+        pdf.set_font("Arial", "B", 18)
+        pdf.cell(0, 10, title, ln=True, align="C")
 
-    pdf.set_font("Helvetica", "", 12)
-    pdf.cell(0, 8, report["report_subtitle"], ln=True, align="C")
-    pdf.ln(5)
+        pdf.set_font("Arial", "", 12)
+        pdf.cell(0, 8, subtitle, ln=True, align="C")
+        pdf.ln(5)
 
-    # Inspection Basic Information
-    pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(0, 8, "検査基本情報", ln=True)
+        # Inspection Basic Information with safety check
+        pdf.set_font("Arial", "B", 12)
+        pdf.cell(0, 8, "Inspection Basic Information", ln=True)
 
-    info = report["Inspection Information"]
-    pdf.set_font("Helvetica", "", 11)
-    pdf.cell(0, 7, f"検査ID: {report['inspection_id']}", ln=True)
-    pdf.cell(0, 7, f"検査日時: {report['inspection_datetime']}", ln=True)
-    pdf.cell(0, 7, f"検査員: {info['Inspector Name']}", ln=True)
-    pdf.cell(0, 7, f"バッチID: {info['Batch ID']}", ln=True)
-    pdf.cell(0, 7, f"製品情報: {info['Product Description']}", ln=True)
+        info = report.get("Inspection Information", {})
+        pdf.set_font("Arial", "", 11)
+        pdf.cell(0, 7, f"Inspection ID: {report.get('inspection_id', 'N/A')}", ln=True)
+        pdf.cell(0, 7, f"Inspection DateTime: {report.get('inspection_datetime', 'N/A')}", ln=True)
+        pdf.cell(0, 7, f"Inspector: {info.get('Inspector Name', 'N/A')}", ln=True)
+        pdf.cell(0, 7, f"Batch ID: {info.get('Batch ID', 'N/A')}", ln=True)
+        pdf.cell(0, 7, f"Product Description: {info.get('Product Description', 'N/A')}", ln=True)
 
-    pdf.ln(4)
-    result = report["Inspection Result"]
+        pdf.ln(4)
+        result = report.get("Inspection Result", {})
 
-    # Judgment Result
-    pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(0, 8, "判定結果", ln=True)
+        # Judgment Result with safety check
+        pdf.set_font("Arial", "B", 12)
+        pdf.cell(0, 8, "Judgment Result", ln=True)
 
-    status = result["Status"]
-    if status == "PASS":
-        pdf.set_text_color(10, 125, 50)
-    else:
-        pdf.set_text_color(200, 40, 40)
+        status = result.get("Status", "UNKNOWN")
+        if status == "PASS":
+            pdf.set_text_color(10, 125, 50)
+        else:
+            pdf.set_text_color(200, 40, 40)
 
-    pdf.set_font("Helvetica", "B", 14)
-    pdf.cell(0, 10, f"{result['判定']} ({status})", ln=True)
+        pdf.set_font("Arial", "B", 14)
+        judgment = result.get("判定", status)
+        pdf.cell(0, 10, f"{judgment} ({status})", ln=True)
 
-    pdf.set_text_color(0, 0, 0)
-    pdf.set_font("Helvetica", "", 11)
-    pdf.cell(0, 7, f"健全性スコア: {result['Surface Health Score']}", ln=True)
+        pdf.set_text_color(0, 0, 0)
+        pdf.set_font("Arial", "", 11)
+        pdf.cell(0, 7, f"Surface Health Score: {result.get('Surface Health Score', 'N/A')}", ln=True)
 
-    pdf.ln(3)
-    reason = report["Decision Explanation"]
-    pdf.set_font("Helvetica", "B", 11)
-    pdf.cell(0, 7, "判定理由", ln=True)
-    pdf.set_font("Helvetica", "", 10)
-    pdf.multi_cell(0, 6, reason["japanese"])
-    pdf.ln(2)
-    pdf.set_font("Helvetica", "I", 9)
-    pdf.multi_cell(0, 5, reason["english"])
+        pdf.ln(3)
+        reason = report.get("Decision Explanation", {})
+        pdf.set_font("Arial", "B", 11)
+        pdf.cell(0, 7, "Decision Reason", ln=True)
+        pdf.set_font("Arial", "", 10)
+        pdf.multi_cell(0, 6, reason.get("japanese", "N/A"))
+        pdf.ln(2)
+        pdf.set_font("Arial", "I", 9)
+        pdf.multi_cell(0, 5, reason.get("english", "N/A"))
 
-    pdf.ln(4)
-    ai = report["AI Analysis - Reference Only"]
-    pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(0, 8, "AI解析結果（参考指標）", ln=True)
-    
-    pdf.set_font("Helvetica", "", 10)
-    pdf.cell(0, 6, f"metal_surface_validation_score: {ai['metal_surface_validation_score']}", ln=True)
-    pdf.cell(0, 6, f"defect_risk_indicator: {ai['defect_risk_indicator']}", ln=True)
-    pdf.ln(3)
-    
-    pdf.set_font("Helvetica", "I", 9)
-    pdf.multi_cell(0, 5, ai["disclaimer"])
-    pdf.ln(2)
-    pdf.multi_cell(0, 5, ai["disclaimer_en"])
+        pdf.ln(4)
+        ai = report.get("AI Analysis - Reference Only", {})
+        pdf.set_font("Arial", "B", 12)
+        pdf.cell(0, 8, "AI Analysis Results (Reference Only)", ln=True)
+        
+        pdf.set_font("Arial", "", 10)
+        pdf.cell(0, 6, f"metal_surface_validation_score: {ai.get('metal_surface_validation_score', 'N/A')}", ln=True)
+        pdf.cell(0, 6, f"defect_risk_indicator: {ai.get('defect_risk_indicator', 'N/A')}", ln=True)
+        pdf.ln(3)
+        
+        pdf.set_font("Arial", "I", 9)
+        pdf.multi_cell(0, 5, ai.get("disclaimer", "N/A"))
+        pdf.ln(2)
+        pdf.multi_cell(0, 5, ai.get("disclaimer_en", "N/A"))
 
-    pdf.ln(6)
-    pdf.set_font("Helvetica", "I", 8)
-    pdf.cell(0, 6, report["footer_note"], ln=True, align="C")
-    pdf.cell(0, 5, report["footer_note_en"], ln=True, align="C")
-    pdf.ln(2)
-    pdf.cell(0, 5, f"Generated: {report['timestamp_iso']}", ln=True, align="C")
-    pdf.cell(0, 5, "System: ZenKensa Edge AI", ln=True, align="C")
+        pdf.ln(6)
+        pdf.set_font("Arial", "I", 8)
+        pdf.cell(0, 6, report.get("footer_note", "N/A"), ln=True, align="C")
+        pdf.cell(0, 5, report.get("footer_note_en", "N/A"), ln=True, align="C")
+        pdf.ln(2)
+        pdf.cell(0, 5, f"Generated: {report.get('timestamp_iso', 'N/A')}", ln=True, align="C")
+        pdf.cell(0, 5, "System: ZenKensa Edge AI", ln=True, align="C")
 
-    pdf.output(file_path)
+        pdf.output(file_path)
+    except Exception as e:
+        raise Exception(f"PDF generation error: {str(e)}")
 
 # Load report function
 def load_report_from_storage(inspection_id: str):
@@ -607,21 +614,30 @@ def view_report(request: Request, inspection_id: str):
 # PDF Report Export Endpoint
 @app.get("/report/{inspection_id}/pdf")
 def download_pdf_report(inspection_id: str):
-    report = load_report_from_storage(inspection_id)
-    if not report:
-        raise HTTPException(status_code=404, detail="Inspection report not found")
+    try:
+        report = load_report_from_storage(inspection_id)
+        if not report:
+            raise HTTPException(status_code=404, detail="Inspection report not found")
 
-    pdf_path = os.path.join(REPORTS_DIR, f"{inspection_id}.pdf")
-    generate_pdf_report(report, pdf_path)
+        pdf_path = os.path.join(REPORTS_DIR, f"{inspection_id}.pdf")
+        generate_pdf_report(report, pdf_path)
 
-    return FileResponse(
-        path=pdf_path,
-        media_type="application/pdf",
-        filename=f"ZENKENSA_Report_{inspection_id}.pdf",
-        headers={
-            "Content-Disposition": "attachment"
-        }
-    )
+        # Ensure PDF file exists before returning
+        if not os.path.exists(pdf_path):
+            raise HTTPException(status_code=500, detail="PDF generation failed")
+
+        return FileResponse(
+            path=pdf_path,
+            media_type="application/pdf",
+            filename=f"ZENKENSA_Report_{inspection_id}.pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="ZENKENSA_Report_{inspection_id}.pdf"'
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
